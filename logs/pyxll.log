@@ -1,0 +1,1007 @@
+2026-04-15 11:34:21,857 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    <unknown> (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 11:34:25,313 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 11:34:26,501 - INFO : This product is licensed to <evaluation>
+2026-04-15 11:34:26,505 - INFO : The license will expire on 2026-05-15 (30 days left)
+2026-04-15 11:34:26,507 - INFO : examples.callbacks.license_notifier:
+    This copy of PyXLL is licensed to <evaluation>
+    30 days left before the license expires (2026-05-15)
+2026-04-15 11:35:34,299 - INFO : examples.callbacks.on_close: PyXLL is closing
+2026-04-15 11:37:38,984 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    <unknown> (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 11:37:43,784 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 11:37:55,950 - INFO : Note: NumExpr detected 20 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2026-04-15 11:37:55,950 - INFO : NumExpr defaulting to 8 threads.
+2026-04-15 11:38:48,491 - INFO : ============================================================
+2026-04-15 11:38:48,507 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 11:38:48,507 - INFO : ============================================================
+2026-04-15 11:38:48,507 - INFO : 
+2026-04-15 11:38:48,507 - INFO : 可用随机函数:
+2026-04-15 11:38:48,507 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 11:38:48,507 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 11:38:48,507 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 11:38:48,507 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 11:38:48,507 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 11:38:48,507 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 11:38:48,507 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 11:38:48,507 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 11:38:48,507 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 11:38:48,507 - INFO : ============================================================
+2026-04-15 11:38:48,842 - ERROR : Error importing 'sim_engine'
+Traceback (most recent call last):
+  File "build/x64/py312/res/release/pyxll.py", line 1086, in _open
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+  File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+    from PySide6.QtCore import Qt
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:41:32,805 - INFO : This product is licensed to <evaluation>
+2026-04-15 11:41:32,805 - INFO : The license will expire on 2026-05-15 (30 days left)
+2026-04-15 11:41:32,809 - INFO : examples.callbacks.license_notifier:
+    This copy of PyXLL is licensed to <evaluation>
+    30 days left before the license expires (2026-05-15)
+2026-04-15 11:41:32,886 - ERROR : examples.callbacks.on_open: Error loading 'sim_engine' : DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:41:32,886 - INFO : Excel启动：自动修复COM缓存...
+2026-04-15 11:41:32,891 - INFO : 重建 COM 缓存时出错: [Errno 13] Permission denied: 'C:\\ProgramData\\anaconda3\\Lib\\site-packages\\win32com\\gen_py\\dicts.dat'
+2026-04-15 11:41:32,891 - INFO : COM缓存自动修复成功，清理了 0 个目录
+2026-04-15 11:41:33,047 - ERROR : Error getting ribbon callback 'sim_engine.on_ribbon_load'.
+2026-04-15 11:41:33,050 - ERROR : Traceback (most recent call last):
+2026-04-15 11:41:33,050 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:41:33,052 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:41:33,052 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:41:33,055 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:41:33,055 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:41:33,055 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:41:33,055 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:41:33,055 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:41:33,055 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:41:33,055 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:41:33,060 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:41:33,060 - ERROR : 
+2026-04-15 11:41:33,060 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:41:33,060 - ERROR : 
+2026-04-15 11:41:33,060 - ERROR : Traceback (most recent call last):
+2026-04-15 11:41:33,060 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:41:33,060 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:43:59,704 - ERROR : Error getting ribbon callback 'sim_engine.get_iterations'.
+2026-04-15 11:43:59,704 - ERROR : Traceback (most recent call last):
+2026-04-15 11:43:59,704 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:43:59,704 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:43:59,704 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:43:59,704 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:43:59,704 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:43:59,704 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:43:59,713 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:43:59,713 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:43:59,715 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:43:59,715 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:43:59,716 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:43:59,716 - ERROR : 
+2026-04-15 11:43:59,716 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:43:59,716 - ERROR : 
+2026-04-15 11:43:59,716 - ERROR : Traceback (most recent call last):
+2026-04-15 11:43:59,716 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:43:59,718 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:44:33,383 - ERROR : Error getting ribbon callback 'sim_engine.get_engine_index'.
+2026-04-15 11:44:33,383 - ERROR : Traceback (most recent call last):
+2026-04-15 11:44:33,383 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:44:33,383 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:44:33,388 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:44:33,389 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:44:33,389 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:44:33,391 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:44:33,391 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:44:33,391 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:44:33,391 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:44:33,393 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:44:33,393 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:44:33,393 - ERROR : 
+2026-04-15 11:44:33,393 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:44:33,393 - ERROR : 
+2026-04-15 11:44:33,393 - ERROR : Traceback (most recent call last):
+2026-04-15 11:44:33,393 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:44:33,395 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:44:34,049 - ERROR : Error getting ribbon callback 'sim_engine.get_scenarios'.
+2026-04-15 11:44:34,049 - ERROR : Traceback (most recent call last):
+2026-04-15 11:44:34,049 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:44:34,049 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:44:34,051 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:44:34,051 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:44:34,053 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:44:34,053 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:44:34,053 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:44:34,055 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:44:34,055 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:44:34,056 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:44:34,057 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:44:34,057 - ERROR : 
+2026-04-15 11:44:34,057 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:44:34,057 - ERROR : 
+2026-04-15 11:44:34,058 - ERROR : Traceback (most recent call last):
+2026-04-15 11:44:34,058 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:44:34,058 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:44:43,662 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 11:44:44,204 - INFO : ============================================================
+2026-04-15 11:44:44,204 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 11:44:44,204 - INFO : ============================================================
+2026-04-15 11:44:44,204 - INFO : 
+2026-04-15 11:44:44,204 - INFO : 可用随机函数:
+2026-04-15 11:44:44,204 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 11:44:44,204 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 11:44:44,204 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 11:44:44,204 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 11:44:44,204 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 11:44:44,204 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 11:44:44,204 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 11:44:44,204 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 11:44:44,204 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 11:44:44,204 - INFO : ============================================================
+2026-04-15 11:44:44,238 - ERROR : Error importing 'sim_engine'
+Traceback (most recent call last):
+  File "build/x64/py312/res/release/pyxll.py", line 1086, in _open
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+  File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+    from PySide6.QtCore import Qt
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:44:47,162 - INFO : This product is licensed to <evaluation>
+2026-04-15 11:44:47,162 - INFO : The license will expire on 2026-05-15 (30 days left)
+2026-04-15 11:44:47,216 - ERROR : examples.callbacks.on_reload: Error loading 'sim_engine' : DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:44:47,266 - ERROR : Error getting ribbon callback 'sim_engine.on_ribbon_load'.
+2026-04-15 11:44:47,266 - ERROR : Traceback (most recent call last):
+2026-04-15 11:44:47,266 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:44:47,266 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:44:47,266 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:44:47,266 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:44:47,272 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:44:47,272 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:44:47,272 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:44:47,272 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:44:47,274 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:44:47,274 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:44:47,276 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:44:47,276 - ERROR : 
+2026-04-15 11:44:47,276 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:44:47,276 - ERROR : 
+2026-04-15 11:44:47,276 - ERROR : Traceback (most recent call last):
+2026-04-15 11:44:47,276 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:44:47,276 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:47:14,953 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 11:47:15,383 - INFO : ============================================================
+2026-04-15 11:47:15,383 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 11:47:15,383 - INFO : ============================================================
+2026-04-15 11:47:15,383 - INFO : 
+2026-04-15 11:47:15,383 - INFO : 可用随机函数:
+2026-04-15 11:47:15,383 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 11:47:15,383 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 11:47:15,383 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 11:47:15,383 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 11:47:15,383 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 11:47:15,383 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 11:47:15,383 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 11:47:15,383 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 11:47:15,383 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 11:47:15,383 - INFO : ============================================================
+2026-04-15 11:47:15,426 - ERROR : Error importing 'sim_engine'
+Traceback (most recent call last):
+  File "build/x64/py312/res/release/pyxll.py", line 1086, in _open
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+  File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+    from PySide6.QtCore import Qt
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:47:18,109 - INFO : This product is licensed to <evaluation>
+2026-04-15 11:47:18,109 - INFO : The license will expire on 2026-05-15 (30 days left)
+2026-04-15 11:47:18,169 - ERROR : examples.callbacks.on_reload: Error loading 'sim_engine' : DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:47:18,209 - ERROR : Error getting ribbon callback 'sim_engine.on_ribbon_load'.
+2026-04-15 11:47:18,209 - ERROR : Traceback (most recent call last):
+2026-04-15 11:47:18,209 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:47:18,209 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:47:18,215 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:47:18,215 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:47:18,217 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:47:18,217 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:47:18,217 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:47:18,217 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:47:18,219 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:47:18,219 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:47:18,219 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:47:18,219 - ERROR : 
+2026-04-15 11:47:18,219 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:47:18,219 - ERROR : 
+2026-04-15 11:47:18,219 - ERROR : Traceback (most recent call last):
+2026-04-15 11:47:18,219 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:47:18,219 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:47:49,587 - ERROR : Error getting ribbon callback 'sim_engine.get_iterations'.
+2026-04-15 11:47:49,587 - ERROR : Traceback (most recent call last):
+2026-04-15 11:47:49,587 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:47:49,587 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:47:49,587 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:47:49,592 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:47:49,592 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:47:49,592 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:47:49,592 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:47:49,592 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:47:49,592 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:47:49,592 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:47:49,592 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:47:49,592 - ERROR : 
+2026-04-15 11:47:49,592 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:47:49,592 - ERROR : 
+2026-04-15 11:47:49,592 - ERROR : Traceback (most recent call last):
+2026-04-15 11:47:49,592 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:47:49,592 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:47:51,903 - ERROR : Error getting ribbon callback 'sim_engine.get_engine_index'.
+2026-04-15 11:47:51,903 - ERROR : Traceback (most recent call last):
+2026-04-15 11:47:51,903 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:47:51,908 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:47:51,909 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:47:51,909 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:47:51,911 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:47:51,911 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:47:51,911 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:47:51,911 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:47:51,913 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:47:51,913 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:47:51,913 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:47:51,913 - ERROR : 
+2026-04-15 11:47:51,913 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:47:51,913 - ERROR : 
+2026-04-15 11:47:51,913 - ERROR : Traceback (most recent call last):
+2026-04-15 11:47:51,913 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:47:51,913 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:49:22,230 - ERROR : Error getting ribbon callback 'sim_engine.get_iterations'.
+2026-04-15 11:49:22,230 - ERROR : Traceback (most recent call last):
+2026-04-15 11:49:22,230 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:49:22,230 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:49:22,230 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:49:22,230 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:49:22,230 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:49:22,230 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:49:22,230 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:49:22,230 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:49:22,230 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:49:22,230 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:49:22,230 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:49:22,230 - ERROR : 
+2026-04-15 11:49:22,230 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:49:22,230 - ERROR : 
+2026-04-15 11:49:22,230 - ERROR : Traceback (most recent call last):
+2026-04-15 11:49:22,230 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:49:22,230 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:49:45,097 - ERROR : Error getting ribbon callback 'sim_engine.get_engine_index'.
+2026-04-15 11:49:45,097 - ERROR : Traceback (most recent call last):
+2026-04-15 11:49:45,097 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:49:45,097 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:49:45,097 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:49:45,097 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:49:45,097 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:49:45,097 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:49:45,097 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:49:45,097 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:49:45,097 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:49:45,097 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:49:45,113 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:49:45,113 - ERROR : 
+2026-04-15 11:49:45,113 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:49:45,113 - ERROR : 
+2026-04-15 11:49:45,113 - ERROR : Traceback (most recent call last):
+2026-04-15 11:49:45,113 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:49:45,113 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:49:46,417 - ERROR : Error getting ribbon callback 'sim_engine.get_scenarios'.
+2026-04-15 11:49:46,417 - ERROR : Traceback (most recent call last):
+2026-04-15 11:49:46,417 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:49:46,419 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:49:46,421 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:49:46,422 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:49:46,424 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:49:46,425 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:49:46,426 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:49:46,426 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:49:46,426 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:49:46,429 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:49:46,431 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:49:46,431 - ERROR : 
+2026-04-15 11:49:46,431 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:49:46,431 - ERROR : 
+2026-04-15 11:49:46,431 - ERROR : Traceback (most recent call last):
+2026-04-15 11:49:46,431 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:49:46,431 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:54:52,477 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 11:54:52,909 - INFO : ============================================================
+2026-04-15 11:54:52,909 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 11:54:52,909 - INFO : ============================================================
+2026-04-15 11:54:52,909 - INFO : 
+2026-04-15 11:54:52,909 - INFO : 可用随机函数:
+2026-04-15 11:54:52,909 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 11:54:52,909 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 11:54:52,909 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 11:54:52,909 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 11:54:52,909 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 11:54:52,909 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 11:54:52,909 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 11:54:52,909 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 11:54:52,909 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 11:54:52,909 - INFO : ============================================================
+2026-04-15 11:54:52,959 - ERROR : Error importing 'sim_engine'
+Traceback (most recent call last):
+  File "build/x64/py312/res/release/pyxll.py", line 1086, in _open
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+  File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+    from PySide6.QtCore import Qt
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:54:55,973 - INFO : This product is licensed to <evaluation>
+2026-04-15 11:54:55,973 - INFO : The license will expire on 2026-05-15 (30 days left)
+2026-04-15 11:54:56,031 - ERROR : examples.callbacks.on_reload: Error loading 'sim_engine' : DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:54:56,080 - ERROR : Error getting ribbon callback 'sim_engine.on_ribbon_load'.
+2026-04-15 11:54:56,080 - ERROR : Traceback (most recent call last):
+2026-04-15 11:54:56,080 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:54:56,080 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:54:56,082 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:54:56,082 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:54:56,085 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:54:56,085 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:54:56,085 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:54:56,085 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:54:56,088 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:54:56,088 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:54:56,090 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:54:56,090 - ERROR : 
+2026-04-15 11:54:56,090 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:54:56,090 - ERROR : 
+2026-04-15 11:54:56,090 - ERROR : Traceback (most recent call last):
+2026-04-15 11:54:56,090 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:54:56,090 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:55:03,981 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 11:55:04,398 - INFO : ============================================================
+2026-04-15 11:55:04,398 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 11:55:04,398 - INFO : ============================================================
+2026-04-15 11:55:04,398 - INFO : 
+2026-04-15 11:55:04,398 - INFO : 可用随机函数:
+2026-04-15 11:55:04,398 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 11:55:04,398 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 11:55:04,398 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 11:55:04,398 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 11:55:04,398 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 11:55:04,398 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 11:55:04,398 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 11:55:04,398 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 11:55:04,398 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 11:55:04,398 - INFO : ============================================================
+2026-04-15 11:55:04,444 - ERROR : Error importing 'sim_engine'
+Traceback (most recent call last):
+  File "build/x64/py312/res/release/pyxll.py", line 1086, in _open
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+  File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+    from PySide6.QtCore import Qt
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:55:05,957 - INFO : This product is licensed to <evaluation>
+2026-04-15 11:55:05,957 - INFO : The license will expire on 2026-05-15 (30 days left)
+2026-04-15 11:55:06,027 - ERROR : examples.callbacks.on_reload: Error loading 'sim_engine' : DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:55:06,074 - ERROR : Error getting ribbon callback 'sim_engine.on_ribbon_load'.
+2026-04-15 11:55:06,074 - ERROR : Traceback (most recent call last):
+2026-04-15 11:55:06,074 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:55:06,076 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:55:06,076 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:55:06,078 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:55:06,078 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:55:06,079 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:55:06,080 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:55:06,080 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:55:06,081 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:55:06,082 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:55:06,083 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:55:06,083 - ERROR : 
+2026-04-15 11:55:06,083 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:55:06,083 - ERROR : 
+2026-04-15 11:55:06,083 - ERROR : Traceback (most recent call last):
+2026-04-15 11:55:06,083 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:55:06,084 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:55:18,869 - ERROR : Error getting ribbon callback 'sim_engine.get_iterations'.
+2026-04-15 11:55:18,869 - ERROR : Traceback (most recent call last):
+2026-04-15 11:55:18,869 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:55:18,869 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:55:18,869 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:55:18,869 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:55:18,869 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:55:18,869 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:55:18,869 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:55:18,869 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:55:18,869 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:55:18,869 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:55:18,869 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:55:18,869 - ERROR : 
+2026-04-15 11:55:18,869 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:55:18,869 - ERROR : 
+2026-04-15 11:55:18,869 - ERROR : Traceback (most recent call last):
+2026-04-15 11:55:18,869 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:55:18,869 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 11:55:29,490 - ERROR : Error getting ribbon callback 'sim_engine.get_engine_index'.
+2026-04-15 11:55:29,490 - ERROR : Traceback (most recent call last):
+2026-04-15 11:55:29,490 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 11:55:29,490 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 11:55:29,490 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:55:29,490 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:55:29,490 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:55:29,490 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 11:55:29,490 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 11:55:29,490 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 11:55:29,490 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 11:55:29,490 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 11:55:29,490 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 11:55:29,490 - ERROR : 
+2026-04-15 11:55:29,490 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 11:55:29,490 - ERROR : 
+2026-04-15 11:55:29,490 - ERROR : Traceback (most recent call last):
+2026-04-15 11:55:29,490 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 11:55:29,490 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 12:07:39,099 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 12:07:39,638 - INFO : ============================================================
+2026-04-15 12:07:39,638 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 12:07:39,638 - INFO : ============================================================
+2026-04-15 12:07:39,638 - INFO : 
+2026-04-15 12:07:39,638 - INFO : 可用随机函数:
+2026-04-15 12:07:39,638 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 12:07:39,638 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 12:07:39,638 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 12:07:39,638 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 12:07:39,638 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 12:07:39,638 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 12:07:39,638 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 12:07:39,638 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 12:07:39,638 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 12:07:39,638 - INFO : ============================================================
+2026-04-15 12:07:39,679 - ERROR : Error importing 'sim_engine'
+Traceback (most recent call last):
+  File "build/x64/py312/res/release/pyxll.py", line 1086, in _open
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+  File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+    from PySide6.QtCore import Qt
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:07:44,679 - INFO : This product is licensed to <evaluation>
+2026-04-15 12:07:44,679 - INFO : The license will expire on 2026-05-15 (30 days left)
+2026-04-15 12:07:44,738 - ERROR : examples.callbacks.on_reload: Error loading 'sim_engine' : DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:07:44,795 - ERROR : Error getting ribbon callback 'sim_engine.on_ribbon_load'.
+2026-04-15 12:07:44,795 - ERROR : Traceback (most recent call last):
+2026-04-15 12:07:44,795 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 12:07:44,795 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 12:07:44,797 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:07:44,797 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:07:44,797 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:07:44,799 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 12:07:44,799 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 12:07:44,799 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:07:44,801 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:07:44,801 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:07:44,801 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:07:44,801 - ERROR : 
+2026-04-15 12:07:44,803 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 12:07:44,803 - ERROR : 
+2026-04-15 12:07:44,803 - ERROR : Traceback (most recent call last):
+2026-04-15 12:07:44,803 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 12:07:44,803 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 12:07:45,969 - ERROR : Error getting ribbon callback 'sim_engine.get_iterations'.
+2026-04-15 12:07:45,969 - ERROR : Traceback (most recent call last):
+2026-04-15 12:07:45,969 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 12:07:45,971 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 12:07:45,971 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:07:45,971 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:07:45,971 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:07:45,971 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 12:07:45,971 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 12:07:45,971 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:07:45,971 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:07:45,977 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:07:45,977 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:07:45,977 - ERROR : 
+2026-04-15 12:07:45,977 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 12:07:45,977 - ERROR : 
+2026-04-15 12:07:45,979 - ERROR : Traceback (most recent call last):
+2026-04-15 12:07:45,979 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 12:07:45,979 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 12:07:57,430 - ERROR : Error getting ribbon callback 'sim_engine.get_engine_index'.
+2026-04-15 12:07:57,430 - ERROR : Traceback (most recent call last):
+2026-04-15 12:07:57,430 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 12:07:57,432 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 12:07:57,432 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:07:57,434 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:07:57,434 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:07:57,436 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 12:07:57,436 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 12:07:57,436 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:07:57,436 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:07:57,438 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:07:57,438 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:07:57,438 - ERROR : 
+2026-04-15 12:07:57,438 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 12:07:57,438 - ERROR : 
+2026-04-15 12:07:57,438 - ERROR : Traceback (most recent call last):
+2026-04-15 12:07:57,438 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 12:07:57,440 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 12:42:44,406 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 12:42:45,387 - INFO : ============================================================
+2026-04-15 12:42:45,387 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 12:42:45,387 - INFO : ============================================================
+2026-04-15 12:42:45,387 - INFO : 
+2026-04-15 12:42:45,387 - INFO : 可用随机函数:
+2026-04-15 12:42:45,387 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 12:42:45,387 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 12:42:45,387 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 12:42:45,387 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 12:42:45,387 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 12:42:45,387 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 12:42:45,387 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 12:42:45,387 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 12:42:45,387 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 12:42:45,387 - INFO : ============================================================
+2026-04-15 12:42:45,467 - ERROR : Error importing 'sim_engine'
+Traceback (most recent call last):
+  File "build/x64/py312/res/release/pyxll.py", line 1086, in _open
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+  File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+    from PySide6.QtCore import Qt
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:42:48,654 - INFO : This product is licensed to <evaluation>
+2026-04-15 12:42:48,654 - INFO : The license will expire on 2026-05-15 (30 days left)
+2026-04-15 12:42:48,715 - ERROR : examples.callbacks.on_reload: Error loading 'sim_engine' : DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:42:48,782 - ERROR : Error getting ribbon callback 'sim_engine.on_ribbon_load'.
+2026-04-15 12:42:48,782 - ERROR : Traceback (most recent call last):
+2026-04-15 12:42:48,782 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 12:42:48,787 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 12:42:48,788 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:42:48,790 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:42:48,790 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:42:48,790 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 12:42:48,792 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 12:42:48,792 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:42:48,792 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:42:48,796 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:42:48,796 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:42:48,796 - ERROR : 
+2026-04-15 12:42:48,796 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 12:42:48,796 - ERROR : 
+2026-04-15 12:42:48,796 - ERROR : Traceback (most recent call last):
+2026-04-15 12:42:48,796 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 12:42:48,798 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 12:42:50,068 - ERROR : Error getting ribbon callback 'sim_engine.get_iterations'.
+2026-04-15 12:42:50,068 - ERROR : Traceback (most recent call last):
+2026-04-15 12:42:50,068 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 12:42:50,070 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 12:42:50,072 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:42:50,072 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:42:50,072 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:42:50,072 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 12:42:50,075 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 12:42:50,075 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:42:50,075 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:42:50,075 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:42:50,078 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:42:50,078 - ERROR : 
+2026-04-15 12:42:50,078 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 12:42:50,078 - ERROR : 
+2026-04-15 12:42:50,078 - ERROR : Traceback (most recent call last):
+2026-04-15 12:42:50,078 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 12:42:50,079 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 12:42:50,730 - ERROR : Error getting ribbon callback 'sim_engine.get_engine_index'.
+2026-04-15 12:42:50,730 - ERROR : Traceback (most recent call last):
+2026-04-15 12:42:50,730 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 12:42:50,732 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 12:42:50,732 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:42:50,734 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:42:50,734 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:42:50,736 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 12:42:50,736 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 12:42:50,736 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:42:50,738 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:42:50,738 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:42:50,738 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:42:50,740 - ERROR : 
+2026-04-15 12:42:50,740 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 12:42:50,740 - ERROR : 
+2026-04-15 12:42:50,740 - ERROR : Traceback (most recent call last):
+2026-04-15 12:42:50,740 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 12:42:50,740 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 12:44:53,531 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 12:44:53,982 - INFO : ============================================================
+2026-04-15 12:44:53,982 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 12:44:53,982 - INFO : ============================================================
+2026-04-15 12:44:53,982 - INFO : 
+2026-04-15 12:44:53,982 - INFO : 可用随机函数:
+2026-04-15 12:44:53,983 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 12:44:53,983 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 12:44:53,983 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 12:44:53,983 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 12:44:53,983 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 12:44:53,983 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 12:44:53,983 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 12:44:53,983 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 12:44:53,983 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 12:44:53,983 - INFO : ============================================================
+2026-04-15 12:44:54,016 - ERROR : Error importing 'sim_engine'
+Traceback (most recent call last):
+  File "build/x64/py312/res/release/pyxll.py", line 1086, in _open
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+  File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+    from PySide6.QtCore import Qt
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:44:56,221 - INFO : This product is licensed to <evaluation>
+2026-04-15 12:44:56,221 - INFO : The license will expire on 2026-05-15 (30 days left)
+2026-04-15 12:44:56,281 - ERROR : examples.callbacks.on_reload: Error loading 'sim_engine' : DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:44:56,337 - ERROR : Error getting ribbon callback 'sim_engine.on_ribbon_load'.
+2026-04-15 12:44:56,337 - ERROR : Traceback (most recent call last):
+2026-04-15 12:44:56,337 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 12:44:56,337 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 12:44:56,340 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:44:56,340 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:44:56,340 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:44:56,340 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 12:44:56,344 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 12:44:56,344 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:44:56,344 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:44:56,344 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:44:56,347 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:44:56,347 - ERROR : 
+2026-04-15 12:44:56,347 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 12:44:56,347 - ERROR : 
+2026-04-15 12:44:56,347 - ERROR : Traceback (most recent call last):
+2026-04-15 12:44:56,347 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 12:44:56,349 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 12:48:27,276 - ERROR : Error getting ribbon callback 'sim_engine.get_iterations'.
+2026-04-15 12:48:27,276 - ERROR : Traceback (most recent call last):
+2026-04-15 12:48:27,276 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 12:48:27,276 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 12:48:27,276 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:48:27,276 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:48:27,276 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:48:27,276 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 55, in <module>
+2026-04-15 12:48:27,276 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 12:48:27,276 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:48:27,288 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:48:27,288 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:48:27,288 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:48:27,288 - ERROR : 
+2026-04-15 12:48:27,288 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 12:48:27,288 - ERROR : 
+2026-04-15 12:48:27,288 - ERROR : Traceback (most recent call last):
+2026-04-15 12:48:27,288 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 12:48:27,288 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 12:59:00,502 - ERROR : Error getting ribbon callback 'sim_engine.get_engine_index'.
+2026-04-15 12:59:00,502 - ERROR : Traceback (most recent call last):
+2026-04-15 12:59:00,502 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 12:59:00,502 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 12:59:00,502 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:59:00,502 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:59:00,502 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:59:00,502 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 12:59:00,502 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 12:59:00,502 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:59:00,502 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:59:00,518 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:59:00,518 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:59:00,518 - ERROR : 
+2026-04-15 12:59:00,518 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 12:59:00,518 - ERROR : 
+2026-04-15 12:59:00,518 - ERROR : Traceback (most recent call last):
+2026-04-15 12:59:00,518 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 12:59:00,518 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 12:59:01,346 - ERROR : Error getting ribbon callback 'sim_engine.get_scenarios'.
+2026-04-15 12:59:01,346 - ERROR : Traceback (most recent call last):
+2026-04-15 12:59:01,346 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11475, in _import_ribbon_callback
+2026-04-15 12:59:01,362 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 258, in _import
+2026-04-15 12:59:01,362 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:59:01,362 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:59:01,362 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:59:01,362 - ERROR :   File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+2026-04-15 12:59:01,362 - ERROR :     from PySide6.QtCore import Qt
+2026-04-15 12:59:01,362 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+2026-04-15 12:59:01,362 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+2026-04-15 12:59:01,362 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+2026-04-15 12:59:01,362 - ERROR : ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 12:59:01,362 - ERROR : 
+2026-04-15 12:59:01,362 - ERROR : During handling of the above exception, another exception occurred:
+2026-04-15 12:59:01,362 - ERROR : 
+2026-04-15 12:59:01,362 - ERROR : Traceback (most recent call last):
+2026-04-15 12:59:01,362 - ERROR :   File "build/x64/py312/res/release/pyxll.py", line 11492, in _import_ribbon_callback
+2026-04-15 12:59:01,362 - ERROR : ImportError: Error importing 'sim_engine' ribbon callback.
+2026-04-15 12:59:02,870 - ERROR : Error calling ribbon callback: Unexpected result from Run (0)
+2026-04-15 12:59:02,994 - INFO : examples.callbacks.on_close: PyXLL is closing
+2026-04-15 12:59:03,092 - INFO : 已删除缓存目录: C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\__pycache__
+2026-04-15 12:59:03,096 - INFO : 已清理 1 个 __pycache__ 目录
+2026-04-15 12:59:03,098 - INFO : 未找到需要清理的 __pycache__ 目录
+2026-04-15 12:59:03,100 - INFO : 未找到需要清理的 __pycache__ 目录
+2026-04-15 12:59:03,101 - INFO : 未找到需要清理的 __pycache__ 目录
+2026-04-15 12:59:03,103 - INFO : 未找到需要清理的 __pycache__ 目录
+2026-04-15 12:59:03,104 - INFO : 未找到需要清理的 __pycache__ 目录
+2026-04-15 12:59:03,106 - INFO : 未找到需要清理的 __pycache__ 目录
+2026-04-15 12:59:03,107 - INFO : 未找到需要清理的 __pycache__ 目录
+2026-04-15 13:01:25,646 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    <unknown> (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 13:01:28,834 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 13:01:31,014 - WARNING : C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\distribution_functions.py:3324: SyntaxWarning: invalid escape sequence '\ '
+  """\u67ef\u897f\u5206\u5e03\uff0c\u7528\u4e8e\u6a21\u62df\u91cd\u5c3e\u8fde\u7eed\u968f\u673a\u53d8\u91cf\u53ca\u6781\u7aef\u4e8b\u4ef6\u573a\u666f\ u3002"""
+
+2026-04-15 13:01:41,789 - INFO : Note: NumExpr detected 20 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2026-04-15 13:01:41,789 - INFO : NumExpr defaulting to 8 threads.
+2026-04-15 13:02:26,595 - INFO : ============================================================
+2026-04-15 13:02:26,596 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 13:02:26,596 - INFO : ============================================================
+2026-04-15 13:02:26,596 - INFO : 
+2026-04-15 13:02:26,596 - INFO : 可用随机函数:
+2026-04-15 13:02:26,596 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 13:02:26,596 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 13:02:26,596 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 13:02:26,596 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 13:02:26,596 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 13:02:26,596 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 13:02:26,597 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 13:02:26,597 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 13:02:26,597 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 13:02:26,597 - INFO : ============================================================
+2026-04-15 13:02:27,223 - ERROR : Error importing 'sim_engine'
+Traceback (most recent call last):
+  File "build/x64/py312/res/release/pyxll.py", line 1086, in _open
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+  File "C:\Users\86151\AppData\Local\Programs\pyxll-5.12.0-x64-py312\Drisk\sim_engine.py", line 48, in <module>
+    from PySide6.QtCore import Qt
+  File "build/x64/py312/res/release/pyxll.py", line 14380, in _tracked_import
+  File "build/x64/py312/res/release/pyxll.py", line 14776, in _import
+  File "build/x64/py312/res/release/pyxll.py", line 14829, in __import_hook
+ImportError: DLL load failed while importing QtCore: 找不到指定的程序。
+2026-04-15 13:08:29,496 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 13:08:39,787 - INFO : Note: NumExpr detected 20 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2026-04-15 13:08:39,787 - INFO : NumExpr defaulting to 8 threads.
+2026-04-15 13:09:23,737 - INFO : ============================================================
+2026-04-15 13:09:23,737 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 13:09:23,737 - INFO : ============================================================
+2026-04-15 13:09:23,737 - INFO : 
+2026-04-15 13:09:23,737 - INFO : 可用随机函数:
+2026-04-15 13:09:23,737 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 13:09:23,737 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 13:09:23,737 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 13:09:23,737 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 13:09:23,737 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 13:09:23,737 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 13:09:23,737 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 13:09:23,737 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 13:09:23,737 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 13:09:23,738 - INFO : ============================================================
+2026-04-15 13:10:20,650 - INFO : This product is licensed to <evaluation>
+2026-04-15 13:10:20,650 - INFO : The license will expire on 2026-05-15 (30 days left)
+2026-04-15 13:10:20,655 - INFO : examples.callbacks.license_notifier:
+    This copy of PyXLL is licensed to <evaluation>
+    30 days left before the license expires (2026-05-15)
+2026-04-15 13:10:20,751 - INFO : Excel启动：自动修复COM缓存...
+2026-04-15 13:10:20,761 - INFO : 重建 COM 缓存时出错: [Errno 13] Permission denied: 'C:\\ProgramData\\anaconda3\\Lib\\site-packages\\win32com\\gen_py\\dicts.dat'
+2026-04-15 13:10:20,761 - INFO : COM缓存自动修复成功，清理了 0 个目录
+2026-04-15 13:10:42,742 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 13:10:43,255 - INFO : ============================================================
+2026-04-15 13:10:43,255 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 13:10:43,255 - INFO : ============================================================
+2026-04-15 13:10:43,255 - INFO : 
+2026-04-15 13:10:43,255 - INFO : 可用随机函数:
+2026-04-15 13:10:43,255 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 13:10:43,255 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 13:10:43,255 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 13:10:43,255 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 13:10:43,255 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 13:10:43,255 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 13:10:43,255 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 13:10:43,255 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 13:10:43,255 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 13:10:43,255 - INFO : ============================================================
+2026-04-15 13:10:43,522 - INFO : This product is licensed to <evaluation>
+2026-04-15 13:10:43,522 - INFO : The license will expire on 2026-05-15 (30 days left)
+2026-04-15 13:41:02,123 - INFO : 
+------------------------------------------------------------------------------
+  PyXLL 
+
+  Version          5.12.0
+  Buildtime        2026-03-24 11:52
+  Python version   3.12
+  Excel version    16.0 (64 bit)
+
+  www.pyxll.com
+------------------------------------------------------------------------------
+2026-04-15 13:41:02,824 - INFO : ============================================================
+2026-04-15 13:41:02,824 - INFO : Drisk蒙特卡洛模拟框架已加载
+2026-04-15 13:41:02,824 - INFO : ============================================================
+2026-04-15 13:41:02,824 - INFO : 
+2026-04-15 13:41:02,824 - INFO : 可用随机函数:
+2026-04-15 13:41:02,824 - INFO :   DriskNormal(均值, 标准差, [属性函数...])
+2026-04-15 13:41:02,824 - INFO :   DriskUniform(最小值, 最大值, [属性函数...])
+2026-04-15 13:41:02,824 - INFO :   DriskGamma(形状参数, 尺度参数, [属性函数...])
+2026-04-15 13:41:02,824 - INFO :   DriskPoisson(λ参数, [属性函数...])
+2026-04-15 13:41:02,824 - INFO :   DriskBeta(α, β, [属性函数...])
+2026-04-15 13:41:02,824 - INFO :   DriskChiSq(自由度, [属性函数...])
+2026-04-15 13:41:02,824 - INFO :   DriskF(自由度1, 自由度2, [属性函数...])
+2026-04-15 13:41:02,824 - INFO :   DriskStudent(自由度, [属性函数...])
+2026-04-15 13:41:02,824 - INFO :   DriskExpon(期望值, [属性函数...])
+2026-04-15 13:41:02,824 - INFO : ============================================================
+2026-04-15 13:41:03,237 - INFO : This product is licensed to <evaluation>
+2026-04-15 13:41:03,237 - INFO : The license will expire on 2026-05-15 (30 days left)

@@ -1,0 +1,75 @@
+﻿<customUI xmlns="http://schemas.microsoft.com/office/2006/01/customui" onLoad="sim_engine.on_ribbon_load" loadImage="pyxll.load_image">
+  <ribbon>
+    <tabs>
+      <tab id="tabDrisk" label="Drisk">
+
+        <group id="grpModel" label="1. 定义模型">
+          <button id="btnOpenModeler" label="定义/编辑分布" imageMso="GroupChartType" size="large" onAction="sim_engine.open_distribution_gallery" screentip="智能识别当前单元格中的 Drisk 分布公式；支持编辑/新建"/>
+          <button id="btnMarkOutput" label="标记输出" imageMso="CreateModule" size="large" onAction="sim_engine.drisk_mark_output" screentip="将当前单元格追加 DriskOutput 函数，使其数据在模拟时被收集作为输出结果"/>
+        </group>
+
+        <group id="grpSim" label="2. 运行模拟">
+          
+          <box id="boxIter" boxStyle="horizontal">
+            <comboBox id="cbIterations" 
+                      label="模拟次数:" 
+                      getText="sim_engine.get_iterations" 
+                      onChange="sim_engine.set_iterations"
+                      sizeString="1000000"> 
+              <item id="it100" label="100"/>
+              <item id="it500" label="500"/>
+              <item id="it1000" label="1000"/>
+              <item id="it5000" label="5000"/>
+              <item id="it10000" label="10000"/>
+              <item id="it50000" label="50000"/>
+              <item id="it100000" label="100000"/>
+            </comboBox>
+          </box>
+          
+          <box id="boxScen" boxStyle="horizontal">
+            <editBox id="ebScenarios" 
+                     label="情景个数:" 
+                     getText="sim_engine.get_scenarios" 
+                     onChange="sim_engine.set_scenarios"
+                     sizeString="1000"/> 
+            <button id="btnDetect" 
+                    imageMso="FindDialog" 
+                    showLabel="false"
+                    onAction="sim_engine.ribbon_smart_detect"
+                    screentip="智能检测：深度扫描工作簿，自动计算所需的场景数"/>
+          </box>
+
+          <box id="boxEngine" boxStyle="horizontal">
+            <dropDown id="ddEngine" label="计算引擎:" getSelectedItemIndex="sim_engine.get_engine_index" sizeString="1000000" onAction="sim_engine.set_engine">
+              <item id="engAuto" label="自动选择"/>
+              <item id="engNumpy" label="极速模式"/>
+              <item id="engIndex" label="标准模式"/>
+              <item id="engIter" label="稳健模式"/>
+            </dropDown>
+          </box>
+          
+          <separator id="sepSim1"/>
+          <button id="btnSimulationSettings" label="模拟设置" imageMso="EditConnectedSystem" size="large" onAction="sim_engine.open_simulation_settings" screentip="打开模拟设置窗口（抽样设置）"/>
+
+          <box id="boxRunSimulation" boxStyle="vertical">
+            <button id="btnRunSimulation" label="运行模拟" imageMso="AddOnsMenu" size="large" onAction="sim_engine.drisk_run_selected" screentip="按当前采样方式执行模拟并缓存结果"/>
+          </box>
+        </group>
+
+        <group id="grpAnalyze" label="3. 结果分析">
+          <button id="btnSmartAnalyze" label="模拟绘图" imageMso="CreateClassModule" size="large" onAction="sim_engine.smart_plot_macro" screentip="对当前选区进行分析：优先读缓存；无缓存则提示输入模拟次数并自动模拟。"/>
+        </group>
+        
+        <group id="grpScatter" label="4. 散点图">
+          <button id="btnScatterPlot" label="散点分析" imageMso="Drawing1GalleryTextures" size="large" onAction="sim_engine.open_scatter_viewer" screentip="选择输入与输出变量，渲染散点并计算相关性系数。"/>
+        </group>
+
+        <group id="grpTools" label="工具">
+          <button id="btnClearCache" label="清理缓存" imageMso="ClearAll" size="large" onAction="sim_engine.drisk_clear_cache" screentip="清空模拟缓存与结果缓存"/>
+          <button id="btnFixCOM" label="修复环境" imageMso="ComAddInsDialog" size="large" onAction="sim_engine.drisk_fix_com" screentip="清理 Windows COM 缓存以修复潜在的连接卡死问题"/>
+        </group>
+
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

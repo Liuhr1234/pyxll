@@ -1,0 +1,132 @@
+<!--
+ This ribbon document contains some example controls as an example of how
+ to construct your own ribbon toolbar.
+
+ Multiple ribbon files can be listed in the pyxll.cfg file and they will
+ be merged together automatically to form a single ribbon document when
+ the PyXLL add-in loads.
+
+ See the other example ribbon in 'custom_task_panes' for an example
+ of another ribbon file that gets merged with this one.
+ -->
+<customUI xmlns="http://schemas.microsoft.com/office/2006/01/customui"
+          loadImage="pyxll.load_image">  <!-- pyxll.load_image is a built-in image loader -->
+    <ribbon>
+        <tabs>
+            <tab id="pyxll" label="PyXLL Example Tab">
+                <group id="Tools" label="Tools">
+                    <button id="Reload"
+                            size="large"
+                            label="Reload PyXLL"
+                            onAction="pyxll.reload"
+                            image="icons/reload.png"/>   <!-- images can be absolute paths or relative to this document -->
+                    <button id="OpenLog"
+                            size="large"
+                            label="Open Log File"
+                            onAction="ribbon.open_logfile"
+                            image="icons/log.png"/>
+                    <button id="OpenDocs"
+                            size="large"
+                            label="User Guide"
+                            onAction="ribbon.open_userguide"
+                            image="icons/docs.png"/>
+                    <button id="About"
+                            size="large"
+                            label="About PyXLL"
+                            onAction="pyxll.about"
+                            image="icons/about.png"/>
+                </group>
+                <group id="UI" label="User Interface Examples">
+                    <splitButton id="Tk_SplitButton" size="large">
+                        <button id="Tk_Button"
+                                image="icons/tk.png" 
+                                label="Tk"
+                                onAction="custom_task_panes.tk_ctp_ribbon_action" />
+                        <menu id="Tk_Menu" label="Tk">
+                            <button id="Tk_CTP"
+                                    label="Tk Custom Task Pane"
+                                    image="icons/tk.png"
+                                    onAction="custom_task_panes.tk_ctp_ribbon_action"/>
+                            <button id="Tk_ActiveX"
+                                    label="Tk ActiveX Control"
+                                    image="icons/tk.png"
+                                    onAction="activex_controls.tk_activex_ribbon_action"/>
+                        </menu>
+                    </splitButton>
+                    <splitButton id="Qt_SplitButton" size="large">
+                        <button id="Qt_Button"
+                                image="icons/qt.png" 
+                                label="Qt"
+                                onAction="custom_task_panes.qt_ctp_ribbon_action" />
+                        <menu id="Qt_Menu" label="Qt">
+                            <button id="Qt_CTP"
+                                    label="Qt Custom Task Pane"
+                                    image="icons/qt.png"
+                                    onAction="custom_task_panes.qt_ctp_ribbon_action"/>
+                            <button id="Qt_ActiveX"
+                                    label="Qt ActiveX Control"
+                                    image="icons/qt.png"
+                                    onAction="activex_controls.qt_activex_ribbon_action"/>
+                        </menu>
+                    </splitButton>
+                    <splitButton id="Wx_SplitButton" size="large">
+                        <button id="Wx_Button"
+                                image="icons/wx.png" 
+                                label="Wx"
+                                onAction="custom_task_panes.wx_ctp_ribbon_action" />
+                        <menu id="Wx_Menu" label="Wx">
+                            <button id="Wx_CTP"
+                                    label="Wx Custom Task Pane"
+                                    image="icons/wx.png"
+                                    onAction="custom_task_panes.wx_ctp_ribbon_action"/>
+                            <button id="Wx_ActiveX"
+                                    label="Wx ActiveX Control"
+                                    image="icons/wx.png"
+                                    onAction="activex_controls.wx_activex_ribbon_action"/>
+                        </menu>
+                    </splitButton>
+                </group>
+                <group id="Controls" label="Control Examples">
+                    <checkBox id="CheckBox"
+                              label="CheckBox"
+                              getPressed="ribbon.checkbox_initial_state"
+                              onAction="ribbon.checkbox_on_action"/>
+                    <comboBox id="ComboBox1"
+                              label="ComboBox 1"
+                              onChange="ribbon.combo_box_on_change"
+                              getItemCount="ribbon.combo_box_item_count"
+                              getItemLabel="ribbon.combo_box_item"
+                              getText="ribbon.combo_box_initial_item"/>
+                    <comboBox id="ComboBox2"
+                              label="ComboBox 2"
+                              onChange="ribbon.combo_box_on_change"
+                              getItemCount="ribbon.combo_box_item_count"
+                              getItemLabel="ribbon.combo_box_item"
+                              getText="ribbon.combo_box_initial_item"/>
+                    <dropDown id="StaticDropdown" label="Static Dropdown">
+                        <item id="ddItem1" label="Item 1" imageMso="Info"/>
+                        <item id="ddItem2" label="Item 2" imageMso="HappyFace"/>
+                    </dropDown>
+                    <gallery id="Months" label="Months (English)"
+                        columns="3" rows="4" onAction="ribbon.month_selected">
+                        <item id="January" label="January"/>
+                        <item id="February" label="February"/>
+                        <item id="March" label="March"/>
+                        <item id="April" label="April"/>
+                        <item id="May" label="May"/>
+                        <item id="June" label="June"/>
+                        <item id="July" label="July"/>
+                        <item id="August" label="August"/>
+                        <item id="September" label="September"/>
+                        <item id="October" label="October"/>
+                        <item id="November" label="November"/>
+                        <item id="December" label="December"/>
+                        <button id="RegionalSettings" label="Regional Settings"
+                            imageMso="ShowTimeZones"
+                            onAction="ribbon.show_time_zones"/>
+                     </gallery>
+                </group>
+            </tab>
+        </tabs>
+    </ribbon>
+</customUI>
