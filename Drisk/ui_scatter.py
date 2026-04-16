@@ -77,7 +77,7 @@ def _sync_application_icon_from(window_widget: QWidget) -> None:
         if icon is not None and not icon.isNull():
             app.setWindowIcon(icon)
     except Exception:
-        pass
+        drisk_env.log.debug("_sync_application_icon_from failed", exc_info=True)
 
 
 def _rename_sim_with_dialog(parent, sim_id) -> bool:
@@ -2034,7 +2034,7 @@ class ScatterPlotlyDialog(QDialog):
         cell_part = clean_addr.split('!')[-1] if '!' in clean_addr else clean_addr
         xl_ctx = self._get_name_resolve_excel_app()
 
-        for k, v in sim_result.output_cache.items():
+        for k, v in (sim_result.output_cache or {}).items():
             k_clean = k.replace('$', '').upper()
             if k_clean == clean_addr or k_clean.startswith(f"{clean_addr}_"):
                 attrs = sim_result.output_attributes.get(k, {}) or {}
@@ -2448,17 +2448,19 @@ class ScatterPlotlyDialog(QDialog):
 
     def closeEvent(self, event):
         """窗口被销毁时回收共享轮子，掐断所有 Timer 以免 C++ 悬挂引发的静默闪退。"""
-        try:
-            if hasattr(self, "_ready_poll_timer") and self._ready_poll_timer.isActive():
-                self._ready_poll_timer.stop()
-        except Exception:
-            pass
+        for attr in ("_ready_poll_timer", "_layout_refresh_coalesce_timer", "_geom_poll_timer", "_geom_poll_stop_timer"):
+            try:
+                t = getattr(self, attr, None)
+                if t is not None and t.isActive():
+                    t.stop()
+            except Exception:
+                drisk_env.logger.debug("closeEvent: failed to stop %s", attr, exc_info=True)
         try:
             if hasattr(self, "web_view") and self.web_view is not None:
                 recycle_shared_webview(self.web_view)
                 self.web_view = None
         except Exception:
-            pass
+            drisk_env.logger.debug("closeEvent: failed to recycle web_view", exc_info=True)
         super().closeEvent(event)
 
 
