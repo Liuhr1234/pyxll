@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import drisk_env
 import json
 import math
 import os
@@ -224,20 +225,15 @@ class ResultsMainRenderService:
             if hasattr(dist, "pdf_vec"):
                 res = dist.pdf_vec(xs)
             elif hasattr(dist, "pdf"):
-                try:
-                    res = dist.pdf(xs)
-                except Exception:
-                    res = np.array([float(dist.pdf(x)) for x in xs], dtype=float)
+                # 内部分布对象的 pdf() 是标量接口，必须逐点调用
+                res = np.array([float(dist.pdf(x)) for x in xs], dtype=float)
             elif hasattr(dist, "pmf_vec"):
-                res = dist.pmf_vec(xs)  # 离散型对应的概率质量函数
+                res = dist.pmf_vec(xs)
             elif hasattr(dist, "pmf"):
-                try:
-                    res = dist.pmf(xs)
-                except Exception:
-                    res = np.array([float(dist.pmf(x)) for x in xs], dtype=float)
+                res = np.array([float(dist.pmf(x)) for x in xs], dtype=float)
             else:
                 return np.array([], dtype=float)
-                
+
             arr = np.asarray(res, dtype=float).ravel()
             # 过滤非数字并强制密度 >= 0
             return np.where(np.isfinite(arr), np.maximum(arr, 0.0), 0.0)
@@ -253,10 +249,7 @@ class ResultsMainRenderService:
             if hasattr(dist, "cdf_vec"):
                 res = dist.cdf_vec(xs)
             elif hasattr(dist, "cdf"):
-                try:
-                    res = dist.cdf(xs)
-                except Exception:
-                    res = np.array([float(dist.cdf(x)) for x in xs], dtype=float)
+                res = np.array([float(dist.cdf(x)) for x in xs], dtype=float)
             else:
                 return np.array([], dtype=float)
             arr = np.asarray(res, dtype=float).ravel()
@@ -279,6 +272,22 @@ class ResultsMainRenderService:
             if x_vals.size == 0:
                 x_vals = np.linspace(float(dialog.x_range_min), float(dialog.x_range_max), 500)
 
+        # 若分布有有限支撑（如 uniform），裁剪到支撑内并加密，再加边界 y=0 锚点形成矩形框
+        _bounded = False
+        try:
+            d_min = float(dist.min_val())
+            d_max = float(dist.max_val())
+            if np.isfinite(d_min) and np.isfinite(d_max):
+                _bounded = True
+                eps = max(1e-10, (d_max - d_min) * 1e-6)
+                inner = np.linspace(d_min, d_max, 200)
+                x_vals = np.unique(np.concatenate([
+                    inner,
+                    x_vals[(x_vals >= d_min) & (x_vals <= d_max)],
+                ]))
+        except Exception:
+            pass
+
         y_vals = ResultsMainRenderService._safe_theory_pdf_vec(dist, x_vals)
         if y_vals.size == 0:
             return None
@@ -289,6 +298,11 @@ class ResultsMainRenderService:
         if n == 0:
             return None
 
+        if _bounded:
+            x_vals = np.concatenate([[d_min - eps], x_vals, [d_max + eps]])
+            y_vals = np.concatenate([[0.0], y_vals, [0.0]])
+
+        print("_build_theory_pdf_trace: 理论 PDF 曲线已构建，打点数=%d，Y 值范围=[%.4g, %.4g]" % (len(x_vals), np.min(y_vals), np.max(y_vals)))
         return DriskChartFactory.get_pdf_line_trace(
             x=x_vals,
             y=y_vals,
@@ -434,6 +448,7 @@ class ResultsMainRenderService:
                         
         # 挂载：理论分布曲线
         if ResultsMainRenderService._should_show_theory_pdf(dialog):
+            print("render_channel_hist: 用户已启用理论 PDF 曲线，正在构建叠加 Trace")
             trace = ResultsMainRenderService._build_theory_pdf_trace(dialog)
             if trace:
                 pdf_traces.append(trace)
@@ -522,6 +537,9 @@ class ResultsMainRenderService:
             and ResultsMainRenderService._should_show_theory_pdf(dialog)
             and ResultsMainRenderService._is_theory_source_discrete(dialog)
         ):
+            print(
+                "render_channel_discrete: 准备叠加理论分布，当前数据组数=%d" % len(groups)
+            )
             support_parts = []
             for group in groups:
                 x_arr = np.asarray(group.get("x", []), dtype=float).ravel()
@@ -531,7 +549,16 @@ class ResultsMainRenderService:
                 support_x = np.concatenate(support_parts)
                 theory_group = ResultsMainRenderService._build_theory_discrete_group(dialog, support_x)
                 if theory_group is not None:
+                    print(
+                        "render_channel_discrete: 理论分布组已生成，支撑点数=%d，概率值范围=[%.4g, %.4g]" % (
+                            len(theory_group.get("x", [])),
+                            float(np.min(theory_group.get("y", [0]))) if len(theory_group.get("y", [])) > 0 else 0.0,
+                            float(np.max(theory_group.get("y", [0]))) if len(theory_group.get("y", [])) > 0 else 0.0
+                        )
+                    )
                     groups.append(theory_group)
+                else:
+                    print("render_channel_discrete: 理论分布组生成失败（返回 None）")
 
         res = DriskChartFactory.build_discrete_bar(
             data_groups=groups,

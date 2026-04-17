@@ -687,9 +687,9 @@ class DriskChartFactory:
           function __compute_discrete_px_target(gd, barIdx, pxPerUnit){
             try{
               // Hard upper cap for bar pixel width.
-              var maxPxTarget = 2.4;
+              var maxPxTarget = 8.0;
               // Keep a visible lower bound so bars do not collapse to sub-pixel width.
-              var minPxTarget = 1.1;
+              var minPxTarget = 3.0;
               var gapLockPx = 1.2;
 
               var info = __collect_support_info(gd, barIdx);
@@ -769,8 +769,8 @@ class DriskChartFactory:
                   return;
               }
 
-              // 最终宽度仍需受上限约束。
-              w = Math.min(w, 2.4);
+              // 最终宽度仍需受上限约束（放宽以配合 minPxTarget）。
+              w = Math.min(w, 10.0);
 
               var currentW = gd.data[barIdx[0]].width;
               if (Array.isArray(currentW)) {
@@ -941,8 +941,8 @@ class DriskChartFactory:
                     min_visible_width = float(span * 0.002)
                 else:
                     min_visible_width = float(gap_basis * 0.2)
-                min_visible_width = max(1e-9, min(2.0, min_visible_width))
-                return max(min_visible_width, min(2.0, safe_width))
+                min_visible_width = max(0.05, min(2.0, min_visible_width))  # 最低宽度 0.05
+                return max(min_visible_width, safe_width)
             except Exception:
                 return None
 

@@ -138,6 +138,20 @@ class ResultsMenuRouter:
             m_cdf.addAction('不叠加').triggered.connect(lambda: dialog._on_view_cmd_triggered('累积概率', 'cdf'))
             m_cdf.addAction('叠加置信区间').triggered.connect(lambda: dialog._on_view_cmd_triggered('累积概率', 'cdf_dkw'))
             
+            menu.addAction('核密度').triggered.connect(lambda: dialog._on_view_cmd_triggered('核密度', 'pdfcurve'))
+
+            m_pdf = menu.addMenu('概率密度（柱状）')
+            m_pdf.addAction('不叠加').triggered.connect(lambda: dialog._on_view_cmd_triggered('概率密度', 'histogram'))
+            
+            # [冲突防范] 若存在多个情景叠加，在直方图上再叠加 KDE 曲线会导致画面极其混乱（线条穿模），因此隐藏。
+            if not is_multiple:
+                m_pdf.addAction('叠加核密度').triggered.connect(lambda: dialog._on_view_cmd_triggered('概率密度', 'histogram_kde'))
+                
+            m_pdf.addAction('叠加累积概率').triggered.connect(lambda: dialog._on_view_cmd_triggered('概率密度', 'histogram_cdf'))
+            
+            if not is_multiple:
+                m_pdf.addAction('全部叠加').triggered.connect(lambda: dialog._on_view_cmd_triggered('概率密度', 'histogram_all'))
+            
         else:
             # ---------------------------------------------------------
             # 连续模式菜单：提供直方图与 KDE 曲线的各种叠加组合
@@ -163,6 +177,11 @@ class ResultsMenuRouter:
             m_cdf.addAction('叠加置信区间').triggered.connect(lambda: dialog._on_view_cmd_triggered('累积概率', 'cdf_dkw'))
             
             menu.addAction('核密度').triggered.connect(lambda: dialog._on_view_cmd_triggered('核密度', 'pdfcurve'))
-            
+
+            m_disc = menu.addMenu('离散概率')
+            m_disc.addAction('不叠加').triggered.connect(lambda: dialog._on_view_cmd_triggered('离散概率', 'discrete'))
+            m_disc.addAction('叠加累积概率').triggered.connect(lambda: dialog._on_view_cmd_triggered('离散概率', 'discrete_cdf'))
+
+
         # 唤起菜单，由于它是一个独立的 ToolButton，不需要像前面那样管理 CheckState
         menu.exec(dialog.btn_view_mode.mapToGlobal(dialog.btn_view_mode.rect().bottomLeft()))
