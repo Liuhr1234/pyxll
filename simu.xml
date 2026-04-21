@@ -64,6 +64,10 @@
           <button id="btnScatterPlot" label="散点分析" imageMso="Drawing1GalleryTextures" size="large" onAction="sim_engine.open_scatter_viewer" screentip="选择输入与输出变量，渲染散点并计算相关性系数。"/>
         </group>
 
+        <group id="grpStressTest" label="5. 压力测试">
+          <button id="btnStressTest" label="压力测试" imageMso="ButtonTaskOfficeDiagnostic" size="large" onAction="sim_engine.open_stress_test" screentip="对模型输入施加极端情景，观察输出的敏感性响应。"/>
+        </group>
+
         <group id="grpTools" label="工具">
           <button id="btnClearCache" label="清理缓存" imageMso="ClearAll" size="large" onAction="sim_engine.drisk_clear_cache" screentip="清空模拟缓存与结果缓存"/>
           <button id="btnFixCOM" label="修复环境" imageMso="ComAddInsDialog" size="large" onAction="sim_engine.drisk_fix_com" screentip="清理 Windows COM 缓存以修复潜在的连接卡死问题"/>
