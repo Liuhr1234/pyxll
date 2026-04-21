@@ -2084,6 +2084,29 @@ def smart_plot_macro(control=None):
         print(f"[Drisk][结果入口] 打开结果对话框失败。\n{err_msg}")
         _show_drisk_info_dialog(f"打开结果对话框失败。\n{str(e)}")
 
+#压力测试入口，对应代码在stress_testing目录下，包含ui和引擎逻辑
+@xl_macro()
+def open_stress_test(control=None):
+    """打开压力测试配置窗口并执行测试。"""
+    try:
+        #ensure_qapp()
+        from stress_testing.ui_stress_test import StressTestInputDialog
+        from PySide6.QtWidgets import QDialog
+        #dlg:前端交互获取数据
+        dlg = StressTestInputDialog()
+        if dlg.exec() == QDialog.Accepted:
+            cfg = dlg.get_config()
+            try:
+                from stress_testing.stress_test_engine import run_stress_test
+                run_stress_test(cfg)
+            except Exception as e:
+                import traceback as _tb
+                _show_drisk_info_dialog(f"压力测试执行失败：\n{e}\n\n{_tb.format_exc()}")
+    except Exception as e:
+        try:
+            xlcAlert(f"打开压力测试窗口失败: {e}")
+        except Exception:
+            pass
 
 @xl_macro()
 def open_scatter_viewer(control=None):
