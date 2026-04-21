@@ -1,7 +1,7 @@
 """Pareto2 distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -64,14 +64,22 @@ def pareto2_generator_single(rng: np.random.Generator, params: List[float]) -> f
 
 def pareto2_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    b = float(params[0])
-    q = float(params[1])
-    dist = _create_dist(b, q)
-    u = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    return np.asarray(dist.ppf(u), dtype=float)
+    b = params[0]
+    q = params[1]
+
+    if not isinstance(b, np.ndarray):
+        b = np.full(n_samples, float(b))
+    if not isinstance(q, np.ndarray):
+        q = np.full(n_samples, float(q))
+
+    if np.any((b <= 0) | (q <= 0)):
+        raise ValueError("Pareto2 requires b>0, q>0")
+
+    from scipy.stats import lomax
+    return lomax.rvs(c=q, loc=0.0, scale=b, size=n_samples, random_state=rng)
 
 
 class Pareto2Distribution(DistributionBase):

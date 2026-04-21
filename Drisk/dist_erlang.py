@@ -44,12 +44,25 @@ def erlang_generator_single(rng: np.random.Generator, params: List[float]) -> fl
 
 
 def erlang_generator_vectorized(
-    rng: np.random.Generator, params: List[float], n_samples: int
+    rng: np.random.Generator, params: List[Union[float, np.ndarray]], n_samples: int
 ) -> np.ndarray:
-    m = _to_int("m", params[0])
-    beta = float(params[1])
-    _validate_params(m, beta)
-    return rng.gamma(shape=m, scale=beta, size=n_samples).astype(float)
+    m = params[0]
+    beta = params[1]
+
+    if not isinstance(m, np.ndarray):
+        m = np.full(n_samples, float(m))
+    else:
+        m = m.astype(float)
+    if not isinstance(beta, np.ndarray):
+        beta = np.full(n_samples, float(beta))
+
+    # 确保 m 是整数
+    m_int = np.round(m).astype(int)
+    if np.any((m_int <= 0) | (np.abs(m - m_int) > 1e-9)):
+        raise ValueError("Erlang m must be positive integer")
+
+    # rng.gamma 支持数组参数 shape, scale
+    return rng.gamma(shape=m_int, scale=beta, size=n_samples).astype(float)
 
 
 def erlang_generator(

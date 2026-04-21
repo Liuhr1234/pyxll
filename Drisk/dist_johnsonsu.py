@@ -1,7 +1,7 @@
 """Johnson SU distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -59,16 +59,35 @@ def johnsonsu_generator_single(rng: np.random.Generator, params: List[float]) ->
 
 def johnsonsu_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    alpha1 = float(params[0])
-    alpha2 = float(params[1])
-    gamma = float(params[2])
-    beta = float(params[3])
+    alpha1 = params[0]
+    alpha2 = params[1]
+    gamma = params[2]
+    beta = params[3]
+
+    for i, arr in enumerate([alpha1, alpha2, gamma, beta]):
+        if not isinstance(arr, np.ndarray):
+            arr = np.full(n_samples, float(arr))
+        else:
+            arr = arr.astype(float)
+        if i == 0:
+            alpha1_arr = arr
+        elif i == 1:
+            alpha2_arr = arr
+        elif i == 2:
+            gamma_arr = arr
+        else:
+            beta_arr = arr
+
+    if np.any((alpha2_arr <= 0) | (beta_arr <= 0)):
+        raise ValueError("JohnsonSU requires alpha2>0, beta>0")
+
     q = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    dist = _create_dist(alpha1, alpha2, gamma, beta)
-    return np.asarray(dist.ppf(q), dtype=float)
+    from scipy.stats import johnsonsu
+    samples = johnsonsu.ppf(q, alpha1_arr, alpha2_arr, loc=gamma_arr, scale=beta_arr)
+    return samples
 
 
 class JohnsonSUDistribution(DistributionBase):

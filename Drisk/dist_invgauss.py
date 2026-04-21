@@ -31,16 +31,24 @@ def invgauss_generator_single(rng: np.random.Generator, params: List[float]) -> 
 
 
 def invgauss_generator_vectorized(
-    rng: np.random.Generator, params: List[float], n_samples: int
+    rng: np.random.Generator, params: List[Union[float, np.ndarray]], n_samples: int
 ) -> np.ndarray:
-    mu, lam = float(params[0]), float(params[1])
-    _validate_params(mu, lam)
+    mu = params[0]
+    lam = params[1]
+
+    if not isinstance(mu, np.ndarray):
+        mu = np.full(n_samples, float(mu))
+    if not isinstance(lam, np.ndarray):
+        lam = np.full(n_samples, float(lam))
+
+    if np.any((mu <= 0) | (lam <= 0)):
+        raise ValueError("Invgauss requires mu>0, lam>0")
 
     y = rng.chisquare(1.0, n_samples)
-    term = (mu * mu * y) / (2.0 * lam)
-    sqrt_term = np.sqrt(4.0 * mu * lam * y + (mu * y) ** 2)
+    term = (mu*mu * y) / (2.0 * lam)
+    sqrt_term = np.sqrt(4.0 * mu * lam * y + (mu * y)**2)
     x1 = mu + term - (mu / (2.0 * lam)) * sqrt_term
-    x2 = mu * mu / x1
+    x2 = mu*mu / x1
     keep_x1 = rng.random(n_samples) <= (mu / (mu + x1))
     return np.where(keep_x1, x1, x2)
 

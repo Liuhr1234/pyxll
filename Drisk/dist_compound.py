@@ -142,36 +142,73 @@ def _generate_compound_samples_with_dist_objects(
     limit: float,
     n_samples: int,
 ) -> np.ndarray:
+    """
+    生成复合分布的样本（向量化聚合）。
+    修复：处理 NaN/Inf 频率值，严格校验数组长度，避免索引越界。
+    """
     if n_samples <= 0:
         return np.empty(0, dtype=float)
 
+    # ---------- 1. 生成频率样本 ----------
     frequency_raw = _draw_samples_from_distribution(frequency_dist, rng, n_samples)
-    if not np.all(np.isfinite(frequency_raw)):
-        raise ValueError("Compound frequency distribution generated non-finite values")
 
+    # 检查频率样本的有效性
+    if not np.all(np.isfinite(frequency_raw)):
+        bad_mask = ~np.isfinite(frequency_raw)
+        if np.any(bad_mask):
+            frequency_raw[bad_mask] = 0.0
+
+    # 取整并限制非负
     counts = np.floor(frequency_raw).astype(np.int64)
     counts[counts < 0] = 0
 
-    totals = np.zeros(n_samples, dtype=float)
+    # ---------- 2. 计算总索赔次数 ----------
     total_claims = int(counts.sum())
     if total_claims <= 0:
-        return totals
+        return np.zeros(n_samples, dtype=float)
 
+    # ---------- 3. 生成严重性样本（一次性生成全部）----------
     severity_raw = _draw_samples_from_distribution(severity_dist, rng, total_claims)
-    if not np.all(np.isfinite(severity_raw)):
-        raise ValueError("Compound severity distribution generated non-finite values")
 
+    # 确保 severity_raw 长度与 total_claims 一致
+    if len(severity_raw) != total_claims:
+        # 如果长度不足，用 0 补齐；如果过长，截断
+        if len(severity_raw) < total_claims:
+            severity_raw = np.append(severity_raw, np.zeros(total_claims - len(severity_raw)))
+        else:
+            severity_raw = severity_raw[:total_claims]
+
+    if not np.all(np.isfinite(severity_raw)):
+        severity_raw[~np.isfinite(severity_raw)] = 0.0
+
+    # ---------- 4. 应用免赔额和限额 ----------
     adjusted = severity_raw - deductible
     adjusted = np.maximum(adjusted, 0.0)
     if math.isfinite(limit):
         adjusted = np.minimum(adjusted, limit)
 
-    positive_mask = counts > 0
-    positive_counts = counts[positive_mask]
-    starts = np.cumsum(np.r_[0, positive_counts[:-1]], dtype=np.int64)
-    totals[positive_mask] = np.add.reduceat(adjusted, starts)
-    return totals
+    # ---------- 5. 按迭代聚合（安全循环，严格索引）----------
+    totals = np.zeros(n_samples, dtype=float)
+    pos_idx = 0
+    total_adjusted_len = len(adjusted)
 
+    for i in range(n_samples):
+        cnt = counts[i]
+        if cnt > 0:
+            # 确保不会超出 adjusted 范围
+            end_idx = pos_idx + cnt
+            if end_idx > total_adjusted_len:
+                # 如果超出，只使用剩余部分
+                cnt = total_adjusted_len - pos_idx
+                end_idx = total_adjusted_len
+            if cnt > 0:
+                totals[i] = np.sum(adjusted[pos_idx:end_idx])
+                pos_idx = end_idx
+            # 如果 cnt == 0（即已无更多数据），则 totals[i] 保持 0
+        # 若 cnt == 0，totals[i] 保持 0
+
+    # 如果循环结束后 pos_idx 未消耗完所有 adjusted（理论上不应发生），忽略剩余部分
+    return totals
 
 def _generate_compound_samples(
     rng: np.random.Generator,

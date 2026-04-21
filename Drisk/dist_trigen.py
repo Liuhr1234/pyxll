@@ -165,14 +165,43 @@ def trigen_generator_single(rng: np.random.Generator, params: List[float]) -> fl
         b = c + 0.5 * width
     return triang_generator_single(rng, [a, c, b])
 
-def trigen_generator_vectorized(rng: np.random.Generator, params: List[float], n_samples: int) -> np.ndarray:
-    L, M, U, alpha, beta = params[0], params[1], params[2], params[3], params[4]
-    a, c, b = _convert_trigen_to_triang(L, M, U, alpha, beta)
-    if not (a < c < b):
-        width = max(U - L, 1.0)
-        a = c - 0.5 * width
-        b = c + 0.5 * width
-    return triang_generator_vectorized(rng, [a, c, b], n_samples)
+def trigen_generator_vectorized(rng: np.random.Generator, params: List[Union[float, np.ndarray]], n_samples: int) -> np.ndarray:
+    L = params[0]
+    M = params[1]
+    U = params[2]
+    alpha = params[3]
+    beta = params[4]
+
+    # 广播
+    for i, arr in enumerate([L, M, U, alpha, beta]):
+        if not isinstance(arr, np.ndarray):
+            arr = np.full(n_samples, float(arr))
+        else:
+            arr = arr.astype(float)
+        if i == 0:
+            L_arr = arr
+        elif i == 1:
+            M_arr = arr
+        elif i == 2:
+            U_arr = arr
+        elif i == 3:
+            alpha_arr = arr
+        else:
+            beta_arr = arr
+
+    # 逐迭代转换
+    a_arr = np.empty(n_samples, dtype=float)
+    c_arr = M_arr.copy()
+    b_arr = np.empty(n_samples, dtype=float)
+
+    for i in range(n_samples):
+        a, c, b = _convert_trigen_to_triang(L_arr[i], M_arr[i], U_arr[i], alpha_arr[i], beta_arr[i])
+        a_arr[i] = a
+        b_arr[i] = b
+        # c 已经等于 M_arr[i]
+
+    # 调用三角分布的向量化生成器
+    return triang_generator_vectorized(rng, [a_arr, c_arr, b_arr], n_samples)
 
 def trigen_generator(rng: np.random.Generator, params: List[float], n_samples: Optional[int] = None) -> Union[float, np.ndarray]:
     if n_samples is None:

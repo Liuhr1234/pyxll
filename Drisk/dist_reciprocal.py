@@ -1,7 +1,7 @@
 """Reciprocal distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.stats import reciprocal as scipy_reciprocal
@@ -69,14 +69,24 @@ def reciprocal_generator_single(rng: np.random.Generator, params: List[float]) -
 
 def reciprocal_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    min_val = float(params[0])
-    max_val = float(params[1])
-    _validate_params(min_val, max_val)
+    min_val = params[0]
+    max_val = params[1]
+
+    if not isinstance(min_val, np.ndarray):
+        min_val = np.full(n_samples, float(min_val))
+    if not isinstance(max_val, np.ndarray):
+        max_val = np.full(n_samples, float(max_val))
+
+    if np.any((min_val <= 0) | (max_val <= min_val)):
+        raise ValueError("Reciprocal requires 0 < min < max")
+
     u = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    return np.asarray(min_val * np.exp(u * _log_ratio(min_val, max_val)), dtype=float)
+    log_ratio = np.log(max_val / min_val)
+    samples = min_val * np.exp(u * log_ratio)
+    return samples
 
 
 class ReciprocalDistribution(DistributionBase):

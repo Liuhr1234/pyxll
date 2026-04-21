@@ -1,7 +1,7 @@
 """Kumaraswamy distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -113,18 +113,37 @@ def kumaraswamy_generator_single(rng: np.random.Generator, params: List[float]) 
 
 def kumaraswamy_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    alpha1 = float(params[0])
-    alpha2 = float(params[1])
-    min_val = float(params[2])
-    max_val = float(params[3])
-    _validate_params(alpha1, alpha2, min_val, max_val)
+    alpha1 = params[0]
+    alpha2 = params[1]
+    min_val = params[2]
+    max_val = params[3]
+
+    for i, arr in enumerate([alpha1, alpha2, min_val, max_val]):
+        if not isinstance(arr, np.ndarray):
+            arr = np.full(n_samples, float(arr))
+        else:
+            arr = arr.astype(float)
+        if i == 0:
+            alpha1_arr = arr
+        elif i == 1:
+            alpha2_arr = arr
+        elif i == 2:
+            min_arr = arr
+        else:
+            max_arr = arr
+
+    if np.any((alpha1_arr <= 0) | (alpha2_arr <= 0) | (max_arr <= min_arr)):
+        raise ValueError("Kumaraswamy parameters invalid")
+
     q = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    term = -np.expm1(np.log1p(-q) / alpha2)
-    z = np.power(term, 1.0 / alpha1)
-    return np.asarray(min_val + (max_val - min_val) * z, dtype=float)
+    term = -np.expm1(np.log1p(-q) / alpha2_arr)
+    term = np.clip(term, 0.0, None)
+    z = np.power(term, 1.0 / alpha1_arr)
+    samples = min_arr + (max_arr - min_arr) * z
+    return samples
 
 
 class KumaraswamyDistribution(DistributionBase):

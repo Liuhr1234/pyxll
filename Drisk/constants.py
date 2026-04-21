@@ -4,7 +4,481 @@
 import math
 
 PANEL_WBS_OVERRIDES = {}
-
+DISTRIBUTION_PARAM_TOOLTIPS = {
+    "Beta": {
+        "α1": "是一个形状参数，必须大于 0。",
+        "α2": "是一个形状参数，必须大于 0。"
+    },
+    "BetaGeneral": {
+        "α1": "是一个形状参数，必须大于 0。",
+        "α2": "是一个形状参数，必须大于 0。",
+        "Min": "是分布的最小值，必须小于Max（最大值）。",
+        "Max": "是分布的最大值，必须大于Min（最小值）。",
+    },
+    "BetaSubj": {
+        "Min": "是分布的最小值，必须小于Max（最大值）。",
+        "M.likely": "是分布的最可能值。",
+        "Mean": "是分布的均值。",
+        "Max": "是分布的最大值，必须大于Min（最小值）。",
+    },
+    "Burr12": {
+        "γ": "是一个位置参数。",
+        "β": "是一个尺度参数，必须大于 0。",
+        "α1": "是一个形状参数，必须大于 0。",
+        "α2": "是一个形状参数，必须大于 0。",
+    },
+    "Cauchy": {
+        "γ": "是一个位置参数。",
+        "β": "是一个尺度参数，必须大于 0。",
+    },
+    "ChiSq": {
+        "V": "代表该分布的自由度，必须为正整数。",
+    },
+    "Cumul": {
+        "Min": "是分布的最小值，必须小于Max（最大值）。",
+        "Max": "是分布的最大值，必须大于Min（最小值）。",
+        "X-Table": "表示曲线上各点对应的数值，必须严格按数值升序排列指定。",
+        "P-Table": "表示曲线上各点对应的累积概率，必须严格按概率升序排列指定，每个点的取值应 >=0 且 <=1。",
+    },
+    "Dagum": {
+        "γ": "是一个位置参数。",
+        "β": "是一个尺度参数，必须大于 0。",
+        "α1": "是一个形状参数，必须大于 0。",
+        "α2": "是一个形状参数，必须大于 0。",
+    },
+    "DoubleTriang": {
+        "Min": "是分布的最小值，必须小于Max（最大值）。",
+        "M.likely": "是分布的最可能值。",
+        "Max": "是分布的最大值，必须大于Min（最小值）。",
+        "Lower P": "下三角分布的概率权重。",
+    },
+    "Erf": {
+        "h": "代表方差参数，必须大于 0。",
+    },
+    "Erlang": {
+        "m": "Gamma分布的整数型参数，必须为正整数。",
+        "Beta": "是一个尺度参数，必须大于 0。",
+    },
+    "Expon": {
+        "β": "是分布的均值，必须大于 0。",
+    },
+    "Extvalue": {
+        "A": "是一个位置参数。",
+        "B": "是一个尺度参数，必须大于 0。",
+    },
+    "ExtvalueMin": {
+        "A": "是一个位置参数。",
+        "B": "是一个尺度参数，必须大于 0。",
+    },
+    "F": {
+        "V1": "是第一个自由度数值，必须是一个正整数。",
+        "V2": "是第二个自由度数值，必须是一个正整数。",
+    },
+    "FatigueLife": {
+        "γ": "是一个位置参数。",
+        "β": "是一个尺度参数，必须大于 0。",
+        "α": "是一个形状参数，必须大于 0。",
+    },
+    "Frechet": {
+        "γ": "是一个位置参数。",
+        "β": "是一个尺度参数，必须大于 0。",
+        "α": "是一个形状参数，必须大于 0。",
+    },
+    "Gamma": {
+        "α": "是一个形状参数，必须大于 0。",
+        "β": "是一个尺度参数，必须大于 0。",
+    },
+    "General": {
+        "Min": "是分布的最小值，必须小于Max（最大值）。",
+        "Max": "是分布的最大值，必须大于Min（最小值）。",
+        "X-Table": "是每个数据点的取值，必须按升序排列，且必须在该分布的最小值-最大值区间内。",
+        "P-Table": "这是 {X} 中每个值对应的概率权重，用于指定该值处概率曲线的相对高度。",
+    },
+    "Histogrm": {
+        "Min": "是分布的最小值，必须小于Max（最大值）。",
+        "Max": "是分布的最大值，必须大于Min（最小值）。",
+        "P-Table": "是该组内各个相应值的概率权重。必须是一个正数。",
+    },
+    "HypSecant": {
+        "γ": "是一个位置参数。",
+        "β": "是一个尺度参数，必须大于 0。",
+    },
+    "Invgauss": {
+        "μ": "是分布的均值，必须大于 0。",
+        "λ": "是一个形状参数，必须大于 0。",
+    },
+    "JohnsonMoments": {
+        "μ": "是分布的均值。",
+        "σ": "是分布的标准差，必须大于 0。",
+        "s": "是分布的斜度。",
+        "k": "这是衡量分布尾部厚度的指标，其取值必须大于 1。",
+    },
+    "JohnsonSB": {
+        "α1": "是一个形状参数。",
+        "α2": "是一个形状参数，必须大于 0。",
+        "a": "是一个连续的边界参数，必须小于 b。",
+        "b": "是一个连续的边界参数，必须大于 a。",
+    },
+    "JohnsonSU": {
+        "α1": "是一个形状参数。",
+        "α2": "是一个形状参数，必须大于 0。",
+        "γ": "是一个位置参数。",
+        "β": "是一个尺度参数，必须大于 0。",
+    },
+    "Kumaraswamy": {
+        "α1": "是一个形状参数，必须大于 0。",
+        "α2": "是一个形状参数，必须大于 0。",
+        "Min": "是分布的最小值，必须小于Max（最大值）。",
+        "Max": "是分布的最大值，必须大于Min（最小值）。",
+    },
+    "Laplace": {
+        "μ": "是分布的均值。",
+        "σ": "是分布的标准差，必须大于或等于 0。",
+    },
+    "Levy": {
+        "a": "是一个位置参数。",
+        "c": "是一个尺度参数，必须大于 0。",
+    },
+    "Logistic": {
+        "α": "是一个位置参数。",
+        "β": "是一个尺度参数，必须大于 0。",
+    },
+    "Loglogistic": {
+        "γ": "是一个位置参数。",
+        "β": "是一个尺度参数，必须大于 0。",
+        "α": "是一个形状参数，必须大于 0。",
+    },
+    "Lognorm": {
+        "μ": "是分布的均值，必须大于 0。",
+        "σ": "是分布的标准差，必须大于 0。",
+    },
+    "Lognorm2": {
+        "μ": "是底层正态分布的均值。",
+        "σ": "是底层正态分布的标准差，必须大于 0。",
+    },
+    "Normal": {
+        "μ": "是分布的均值。",
+        "σ": "是分布的标准差，必须大于 0。",
+    },
+    "Pareto": {
+        "θ": "是一个形状参数，必须大于 0。",
+        "α": "是一个尺度参数，必须大于 0。",
+    },
+    "Pareto2": {
+        "b": "是一个尺度参数，必须大于 0。",
+        "q": "是一个形状参数，必须大于 0。",
+    },
+    "Pearson5": {
+        "α": "是一个形状参数，必须大于 0。",
+        "β": "是一个尺度参数，必须大于 0。",
+    },
+    "Pearson6": {
+        "α1": "是一个形状参数，必须大于 0。",
+        "α2": "是一个形状参数，必须大于 0。",
+        "β": "是一个尺度参数，必须大于 0。",
+    },
+    "Pert": {
+        "Min": "是分布的最小值，必须小于Max（最大值）。",
+        "M.likely": "是分布的最可能值，作为形态参数的计算基准。",
+        "Max": "是分布的最大值，必须大于Min（最小值）。",
+    },
+    "Rayleigh": {
+        "b": "是分布的众数，必须大于 0。",
+    },
+    "Reciprocal": {
+        "Min": "是分布的最小值，必须小于或等于Max（最大值）。",
+        "Max": "是分布的最大值，必须大于或等于Min（最小值）。",
+    },
+    "Student": {
+        "v": "是分布的自由度，必须是正整数。",
+    },
+    "Triang": {
+        "Min": "是分布的最小值，必须小于Max（最大值）。",
+        "M.likely": "是分布的最可能值。",
+        "Max": "是分布的最大值，必须大于Min（最小值）。",
+    },
+    "Trigen": {
+        "Bottom": "是计算底部分位数的临界值，表示在该值以下累积概率达到指定百分比。",
+        "M.likely": "是分布的最可能值。",
+        "Top": "是计算顶部分位数的临界值，表示在该值以上累积概率达到指定百分比。",
+        "Bottom%": "指在分布中Bottom左侧区域面积占总面积的百分比。其取值必须大于0到100之间。",
+        "Top%": "指在分布中Top左侧区域面积占总面积的百分比。其取值必须大于0到100之间。",
+    },
+    "Uniform": {
+        "Min": "是分布的最小值，必须小于或等于Max（最大值）。",
+        "Max": "是分布的最大值，必须大于或等于Min（最小值）。",
+    },
+    "Weibull": {
+        "α": "是一个形状参数，必须大于 0。",
+        "β": "是一个尺度参数，必须大于 0。",
+    },
+    "Bernoulli": {
+        "p": "每次试验的成功率，其取值范围必须大于等于0且小于等于1。",
+    },
+    "Binomial": {
+        "n": "试验或抽样的次数。",
+        "p": "每次试验的成功概率，其取值范围必须大于等于0且小于等于1。",
+    },
+    "Discrete": {
+        "X-Table": "指定每个可能结果对应的输入值。",
+        "P-Table": "用于指定各结果出现概率的权重值。权重值 p 必须满足：所有元素 >=0，且总和 > 0。",
+    },
+    "DUniform": {
+        "X-Table": "指定每个可能结果对应的输入值。",
+    },
+    "Geomet": {
+        "p": "每次试验的成功率，其取值范围必须大于等于0且小于等于1。",
+    },
+    "Hypergeo": {
+        "n": "样本容量，必须为正整数。",
+        "D": "表示相关类型的物品数量，必须为正整数。",
+        "M": "总体规模，必须为正整数值。",
+    },
+    "Intuniform": {
+        "Min": "是分布的最小值，必须小于或等于Max（最大值）。",
+        "Max": "是分布的最大值，必须大于或等于Min（最小值）。",
+    },
+    "Negbin": {
+        "s": "成功次数，必须为正整数。",
+        "p": "每次试验的成功概率，其取值范围必须大于等于0且小于等于1。",
+    },
+    "Poisson": {
+        "λ": "是分布的均值，必须大于 0。",
+    },
+    "Compound": {
+        "Frequency": "定义严重程度分布中抽取并累加的样本数量分布。",
+        "Severity": "定义描述各样本严重程度的分布。",
+        "Deductible": "定义免赔额的可选参数，默认值为不设置免赔额。",
+        "Limit": "定义赔偿限额的可选参数，默认值为无限。",
+    },
+    "Splice": {
+        "Left": "是一个分布，或指向包含该分布的单元格的引用。",
+        "Right": "是一个分布，或指向包含该分布的单元格的引用。",
+        "SplicePoint": "是两个分布拼接在一起的数值。",
+    },
+}
+DISTRIBUTION_CARD_TOOLTIPS = {
+    "Bernoulli": {
+        "summary": "Bernoulli - 离散、有界分布",
+        "detail": "用于模拟具有两种明确结果的事件：是/否、开/关、0/1等。常用于质量控制、可靠性分析、调查抽样及流行病学研究领域。"
+    },
+    "Binomial": {
+        "summary": "Binomial - 离散、有界分布",
+        "detail": "用于模拟在一系列独立试验中成功的次数，常见于质量控制、可靠性分析和调查抽样等领域。"
+    },
+    "Discrete":{
+        "summary": "Discrete - 离散、有界分布",
+        "detail": "一个通过概率表定义的离散型变量。"
+    },
+    "DUniform":{
+        "summary": "DUniform - 离散、有界分布",
+        "detail": "定义具有等概率结果的离散型变量，其取值由数值表指定。"
+    },
+    "Geomet":{
+        "summary": "Geomet - 离散、左端有界分布",
+        "detail": "用于模拟在首次成功前所需的试验次数，常见于质量控制和可靠性分析领域。"
+    },
+    "Hypergeo":{
+        "summary": "Hypergeo - 离散、有界分布",
+        "detail": "用于模拟在不放回抽样中成功的次数，常见于质量控制和概率论领域。"
+    },
+    "Intuniform":{
+        "summary": "IntUniform - 离散、有界分布",
+        "detail": "定义等概率离散变量，通常用于粗略估计"
+    },
+    "Negbin":{
+        "summary": "Negbin - 离散、左端有界分布",
+        "detail": "用于模拟在达到指定成功次数前所发生的失败次数，常见于质量控制、可靠性分析与调查抽样领域。"
+    },
+    "Poisson":{
+        "summary": "Poisson - 离散、左端有界分布",
+        "detail": "主要用于建模固定时间或空间间隔内独立事件的发生次数，常见于质量控制、可靠性分析及排队论领域。"
+    },
+    "Beta":{
+        "summary": "Beta - 连续、有界分布",
+        "detail": "取值区间在0到1之间，常用于表示变量的概率或比例，在贝叶斯推断和顺序统计量分析中具有重要应用价值。"
+    },
+    "BetaGeneral":{
+        "summary": "BetaGeneral - 连续、有界分布",
+        "detail": "用于建模两端有界的变量，常用于项目管理和成本分析领域。"
+    },
+    "BetaSubj":{
+        "summary": "BetaSubj - 连续、有界分布",
+        "detail": "用于建模两端有界的变量，常用于项目管理和成本分析领域。"
+    },
+    "Burr12":{
+        "summary": "Burr12 - 连续、左端有界分布",
+        "detail": "一种灵活的概率分布，用于建模非负随机变量，常用于家庭收入、保险理赔金额、可靠性数据及出行时间分析。"
+    },
+    "Cauchy":{
+        "summary": "Cauchy - 连续、无界分布",
+        "detail": "一种对称的概率分布，其尾部远厚重于正态分布，常用于极端事件建模及共振现象分析。"
+    },
+    "ChiSq":{
+        "summary": "ChiSq - 连续、左端有界分布",
+        "detail": "伽马分布的一种特例，主要应用于推断统计学和拟合优度检验。"
+    },
+    "Cumul":{
+        "summary": "Cumul - 连续、无界分布",
+        "detail": "一种通过数值与累积概率对照表定义的连续变量。"
+    },
+    "Dagum":{
+        "summary": "Dagum - 连续、左端有界分布",
+        "detail": "可作为Pareto分布与Lognorm分布的替代分布，其应用包括收入与财富建模、气象数据分析、可靠性研究及生存分析。"
+    },
+    "DoubleTriang":{
+        "summary": "DoubleTriang - 连续、有界分布",
+        "detail": "由两个三角分布混合而成，用于建立专家意见模型，常见于项目管理和成本分析领域。"
+    },
+    "Erf": {
+        "summary": "Erf - 连续、无界分布",
+        "detail": "作为零均值Normal分布的替代参数化形式，亦称Gauss Error Function。"
+    },
+    "Erlang":{
+        "summary": "Erlang - 连续、左端有界分布",
+        "detail": "Gamma分布的一种特例，其形状参数取整数值，常用于排队系统的建模。"
+    },
+    "Expon":{
+        "summary": "Expon - 连续、左端有界分布",
+        "detail": "用于建模Poisson过程中事件之间的时间间隔，常见于排队论和可靠性分析。"
+    },
+    "Extvalue":{
+        "summary": "Extvalue - 连续、无界分布",
+        "detail": "也被称为Gumbel Ⅰ类型分布，是广义极值分布的一种特例，常应用于金融风险建模、灾害最严重情景预测以及系统失效分析等领域。"
+    },
+    "ExtvalueMin":{
+        "summary": "ExtvalueMin - 连续、无界分布",
+        "detail": "也被称为Gumbel Ⅱ类型分布，是广义极值分布的一种特例，常应用于金融风险建模、灾害最严重情景预测以及系统失效分析等领域。"
+    },
+    "F":{
+        "summary": "F - 连续、左端有界分布",
+        "detail": "一种常作为检验统计量的零假设分布出现的非对称分布。主要应用于推断统计学领域，尤其在方差分析中较为突出。"
+    },
+    "FatigueLife":{
+        "summary": "FatigueLife - 连续、左端有界分布",
+        "detail": "一种常用于分析随时间推移失效情况的右偏分布，也称为Birnbaum-Saunders分布。"
+        },
+    "Frechet":{
+        "summary": "Frechet - 连续、左端有界分布",
+        "detail": "是广义极值分布的一种特例，常应用于金融风险建模、灾害最严重情景预测以及系统失效分析等领域。"
+    },
+    "Gamma":{
+        "summary": "Gamma - 连续、左端有界分布",
+        "detail": "常用于排队论、可靠性分析和贝叶斯统计学。"
+    },  
+    "General":{
+        "summary": "General - 连续、有界分布",
+        "detail": "一种通过数值与概率对照表定义的连续变量。"
+    },
+    "Histogrm":{
+        "summary": "Histogrm - 连续、有界分布",
+        "detail": "一种通过概率表定义的连续变量分布，该表格指定了直方图的概率结构。"
+    },
+    "HypSecant":{
+        "summary": "HypSecant - 连续、无界分布",
+        "detail": "类似于正态分布，但具有更尖锐的峰态，常用于金融收益率数据的建模分析。"
+    },
+    "Invgauss":{
+        "summary": "Invgauss - 连续、左端有界分布",
+        "detail": "主要应用于生存分析和可靠性分析，也被称为Wald分布。"
+    },
+    "JohnsonSB":{
+        "summary": "JohnsonSB - 连续、有界分布",
+        "detail": "有界的Johnson分布，适用于专家意见建模、项目管理及成本分析等领域。"
+    },
+    "JohnsonSU":{
+        "summary": "JohnsonSU - 连续、无界分布",
+        "detail": "无界的Johnson分布，适用于专家意见建模、项目管理及成本分析等领域。"
+    },
+    "Kumaraswamy":{
+        "summary": "Kumaraswamy - 连续、有界分布",
+        "detail": "与Beta分布密切相关，常用于项目管理与成本分析领域。"
+    },
+     "Laplace":{
+        "summary": "Laplace - 连续、无界分布",
+        "detail": "又称为双指数分布，是一种对称分布，其峰度较正态分布更为尖锐，常用于极端事件建模。"
+    },
+     "Levy":{
+        "summary": "Levy - 连续、左端有界分布",
+        "detail": "是一种用于建模非负随机变量的厚尾分布，广泛应用于金融风险与收益建模领域。"
+     },
+        "Logistic":{
+            "summary": "Logistic - 连续、无界分布",
+            "detail": "一种对称分布，其尾部比正态分布重得多，用途包括增长建模和逻辑回归。"
+        },
+        "Loglogistic":{
+                "summary": "Loglogistic - 连续、左端有界分布",
+                "detail": "类似于对数正态分布，但尾部更厚，用途包括生存分析以及财富和收入的分布情况分析。"
+            },
+        "Lognorm":{
+            "summary": "Lognorm - 连续、左端有界分布",
+            "detail": "一种随机变量，其对数服从正态分布，其用途包括随时间变化的增长情况分析以及可靠性分析。分布的参数是该分布的实际均值和标准差。"
+        },
+        "Lognorm2":{
+            "summary": "Lognorm2 - 连续、左端有界分布",
+            "detail": "一种随机变量，其对数服从正态分布。其用途包括对随时间变化的增长情况分析以及可靠性分析。分布的参数是其底层正态分布的均值和标准差。"
+        },
+        "Normal": {
+            "summary": "Normal - 连续、无界分布",
+            "detail": "经典的“钟形曲线”分布，是统计学分析中最核心的概率分布，其重要性源于中心极限定理的普适性。"
+        },
+        "Pareto":{
+            "summary": "Pareto - 连续、左端有界分布",
+            "detail": "是广义帕累托分布的一个特例，常用于以下领域建模：财富/收入分配、人口统计学、事件间隔时间。"
+        },
+        "Pareto2":{
+            "summary": "Pareto2 - 连续、左端有界分布",
+            "detail": "也称为广义帕累托分布，常应用于金融风险建模、灾害最严重情景预测以及系统失效分析等领域。"
+        },
+        "Pearson5":{
+            "summary": "Pearson5 - 连续、左端有界分布",
+            "detail": "是Gamma分布与Beta分布的变体，主要用于延迟时间建模和可靠性分析。"
+        },
+        "Pearson6":{
+            "summary": "Pearson6 - 连续、左端有界分布",
+            "detail": "是F分布的变体，专为左有界变量的灵活建模而设计。"
+        },
+        "Pert":{
+            "summary": "Pert - 连续、有界分布",
+            "detail": "用于建模双边界约束变量，主要用于项目管理和成本分析。"
+         },
+         "Reciprocal":{
+             "summary": "Reciprocal - 连续、有界分布",
+             "detail": "是一种双侧有界的右偏态分布，在数值分析、贝叶斯统计及噪声分析中具有重要应用。"
+         },
+         "Rayleigh":{
+             "summary": "Rayleigh - 连续、左端有界分布",
+             "detail": "是Weibull分布的一个特例，常用于风速/波浪高度、产品寿命和噪声信号分析。"
+         },
+          "Student":{
+              "summary": "Student - 连续、无界分布",
+              "detail": "是一种对称钟形分布，具有比正态分布更厚的尾部，是统计推断中的常用工具。"
+          },
+          "Triang":{
+                "summary": "Triang - 连续、有界分布",
+                "detail": "适用于三点估算和专家意见建模，常见于项目管理和成本分析领域。"
+          },
+          "Trigen":{
+                "summary": "Trigen - 连续、有界分布",
+                "detail": "适用于三点估算和专家意见建模，常见于项目管理和成本分析领域。"
+          },
+          "Uniform":{
+            "summary": "Uniform - 连续、有界分布",
+            "detail": "一种有界连续变量，其所有结果的发生概率相同，通常用于粗略估计。"
+          },
+          "Weibull":{
+            "summary": "Weibull - 连续、左端有界分布",
+            "detail": "是一种常用于极端事件建模、产品可靠性评估以及寿命与失效数据分析的灵活概率分布。"
+          },
+          "Splice":{
+            "summary": "Splice - 连续、无界分布",
+            "detail": "将两个分布按照你指定的“拼接点”合并在一起。"
+          },
+          "Compound":{
+            "summary": "Compound - 连续、无界分布",
+            "detail": "将来自“严重程度”分布的多个样本与“频率”分布进行组合控制，常用于操作风险和精算分析领域。"
+          }
+}
 # 属性函数标记值 - 使用不同的浮点数值
 ATTR_NAME_MARKER = 0.0
 ATTR_LOC_MARKER = 1.0
@@ -155,12 +629,12 @@ def _is_distribution_formula_string(value):
 DISTRIBUTION_REGISTRY = {
     "DriskNormal": {
         "type": "normal", "min_params": 2, "max_params": 2,
-        "param_names": ["Mean", "Std._Dev"],
+        "param_names": ["μ", "σ"],
         "supports_shift_truncate": True,
         "category": "\u65e0\u754c",  # 无界
         "description":"定义一个经典的“钟形曲线”正态分布，广泛适用于描述大量数据集的统计分布特征。",
         "ui_name": "Normal - \u8fde\u7eed\u3001\u65e0\u754c\u5206\u5e03",  # Normal - 连续、无界分布
-        "ui_param_labels": ["Mean", "Std._Dev."],
+        "ui_param_labels": ["μ", "σ"],
         "param_descriptions": [
             "是分布的均值。",
             "是分布的标准差，必须大于0。",
@@ -172,12 +646,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskUniform": {
         "type": "uniform", "min_params": 2, "max_params": 2,
-        "param_names": ["Minimum", "Maximum"],
+        "param_names": ["Min", "Max"],
         "supports_shift_truncate": True,
         "category": "\u6709\u754c",  # 有界
         "description": "定义一个均匀概率分布。在均匀分布的取值范围内，每个值出现的可能性都是相等的。",
         "ui_name": "Uniform - \u8fde\u7eed\u3001\u6709\u754c\u5206\u5e03",  # Uniform - 连续、有界分布
-        "ui_param_labels": ["Minimum", "Maximum"],
+        "ui_param_labels": ["Min", "Max"],
         "param_descriptions": [
             "是分布的最小值，必须小于或等于Maximum（最大值）。",
             "是分布的最大值，必须大于或等于Minimum（最小值）。",
@@ -189,12 +663,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskErf": {
         "type": "erf", "min_params": 1, "max_params": 1,
-        "param_names": ["H"],
+        "param_names": ["h"],
         "supports_shift_truncate": True,
         "category": "\u65e0\u754c",
         "description": "定义一个具有方差参数H的Gauss Error函数，该分布派生自Normal分布。",
         "ui_name": "Erf - \u8fde\u7eed\u3001\u65e0\u754c\u5206\u5e03",
-        "ui_param_labels": ["H"],
+        "ui_param_labels": ["h"],
         "param_descriptions": [
             "代表方差参数，必须大于0。"
         ],
@@ -239,12 +713,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "FatigueLife": {
         "type": "fatiguelife", "min_params": 3, "max_params": 3,
-        "param_names": ["Y", "beta", "alpha"],
+        "param_names": ["γ", "β", "α"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "定义一个FatigueLife分布。",
         "ui_name": "FatigueLife - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["Gamma", "Beta", "Alpha"],
+        "ui_param_labels": ["γ", "β", "α"],
         "param_descriptions": [
             "是一个位置参数。",
             "是一个尺度参数，必须大于0。",
@@ -259,12 +733,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskFrechet": {
         "type": "frechet", "min_params": 3, "max_params": 3,
-        "param_names": ["Y", "beta", "alpha"],
+        "param_names": ["γ", "β", "α"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "定义一个Frechet分布。",
         "ui_name": "Frechet - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["Gamma", "Beta", "Alpha"],
+        "ui_param_labels": ["γ", "β", "α"],
         "param_descriptions": [
             "是一个位置参数。",
             "是一个尺度参数，必须大于0。",
@@ -284,7 +758,7 @@ DISTRIBUTION_REGISTRY = {
         "category": "\u6709\u754c",
         "description": "基于指定的 (x, p) 数据对所构建的密度曲线，生成一个广义概率分布。",
         "ui_name": "General - \u8fde\u7eed\u3001\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["Minimum", "Maximum", "X", "P"],
+        "ui_param_labels": ["Min", "Max", "X-Table", "P-Table"],
         "param_descriptions": [
             "是分布的最小值，必须小于Maximum（最大值）。",
             "是分布的最大值，必须大于Minimum（最小值）。",
@@ -316,12 +790,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskHypSecant": {
         "type": "hypsecant", "min_params": 2, "max_params": 2,
-        "param_names": ["\u03b3", "\u03b2"],
+        "param_names": ["γ", "β"],
         "supports_shift_truncate": True,
         "category": "\u65e0\u754c",
         "description": "定义一个HypSecant分布。",
         "ui_name": "HypSecant - \u8fde\u7eed\u3001\u65e0\u754c\u5206\u5e03",
-        "ui_param_labels": ["Gamma", "Beta"],
+        "ui_param_labels": ["γ", "β"],
         "param_descriptions": [
             "是一个位置参数。",
             "是一个尺度参数，必须大于0。"
@@ -333,12 +807,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskJohnsonSB": {
         "type": "johnsonsb", "min_params": 4, "max_params": 4,
-        "param_names": ["alpha1", "alpha2", "a", "b"],
+        "param_names": ["α1", "α2", "a", "b"],
         "supports_shift_truncate": True,
         "category": "\u6709\u754c",
         "description": "定义一个JohnsonSB（系统有界）分布。",
         "ui_name": "JohnsonSB - \u8fde\u7eed\u3001\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["Alpha_1", "Alpha_2", "A", "B"],
+        "ui_param_labels": ["α1", "α2", "a", "b"],
         "param_descriptions": [
             "是一个形状参数。",
             "是一个形状参数，必须大于 0。",
@@ -354,12 +828,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskJohnsonSU": {
         "type": "johnsonsu", "min_params": 4, "max_params": 4,
-        "param_names": ["alpha1", "alpha2", "gamma", "beta"],
+        "param_names": ["α1", "α2", "γ", "β"],
         "supports_shift_truncate": True,
         "category": "\u65e0\u754c",
         "description": "定义一个JohnsonSU（系统无界）分布。",
         "ui_name": "JohnsonSU - \u8fde\u7eed\u3001\u65e0\u754c\u5206\u5e03",
-        "ui_param_labels": ["Alpha_1", "Alpha_2", "Gamma", "Beta"],
+        "ui_param_labels": ["α1", "α2", "γ", "β"],
         "param_descriptions": [
             "是一个形状参数。",
             "是一个形状参数，必须大于 0。",
@@ -375,12 +849,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskKumaraswamy": {
         "type": "kumaraswamy", "min_params": 4, "max_params": 4,
-        "param_names": ["alpha1", "alpha2", "min_val", "max_val"],
+        "param_names": ["α1", "α2", "Min", "Max"],
         "supports_shift_truncate": True,
         "category": "\u6709\u754c",
         "description": "定义一个4参数Kumaraswamy分布。",
         "ui_name": "Kumaraswamy - \u8fde\u7eed\u3001\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["\u03b11", "\u03b12", "Min", "Max"],
+        "ui_param_labels": ["α1", "α2", "Min", "Max"],
         "param_descriptions": [
             "是一个形状参数，必须大于 0。",
             "是一个形状参数，必须大于 0。",
@@ -399,12 +873,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskLaplace": {
         "type": "laplace", "min_params": 2, "max_params": 2,
-        "param_names": ["mu", "sigma"],
+        "param_names": ["μ", "σ"],
         "supports_shift_truncate": True,
         "category": "\u65e0\u754c",
         "description": "定义一个Laplace分布。",
         "ui_name": "Laplace - \u8fde\u7eed\u3001\u65e0\u754c\u5206\u5e03",
-        "ui_param_labels": ["\u03bc", "\u03c3"],
+        "ui_param_labels": ["μ", "σ"],
         "param_descriptions": [
             "是分布的均值。",
             "是分布的标准差，必须大于或等于0。"
@@ -416,12 +890,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskLogistic": {
         "type": "logistic", "min_params": 2, "max_params": 2,
-        "param_names": ["alpha", "beta"],
+        "param_names": ["α", "β"],
         "supports_shift_truncate": True,
         "category": "\u65e0\u754c",
         "description": "定义一个Logistic分布。",
         "ui_name": "Logistic - \u8fde\u7eed\u3001\u65e0\u754c\u5206\u5e03",
-        "ui_param_labels": ["\u03b1", "\u03b2"],
+        "ui_param_labels": ["α", "β"],
         "param_descriptions": [
             "是一个位置参数。",
             "是一个尺度参数，必须大于0。"
@@ -433,12 +907,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskLoglogistic": {
         "type": "loglogistic", "min_params": 3, "max_params": 3,
-        "param_names": ["gamma", "beta", "alpha"],
+        "param_names": ["γ", "β", "α"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "定义一个Loglogistic分布。",
         "ui_name": "Loglogistic - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["\u03b3", "\u03b2", "\u03b1"],
+        "ui_param_labels": ["γ", "β", "α"],
         "param_descriptions": [
             "是一个位置参数。",
             "是一个尺度参数，必须大于 0。",
@@ -453,12 +927,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskLognorm": {
         "type": "lognorm", "min_params": 2, "max_params": 2,
-        "param_names": ["mu", "sigma"],
+        "param_names": ["μ", "σ"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "定义一种对数正态分布，这种形式的对数正态分布的参数为该概率分布的实际均值和标准差。",
         "ui_name": "Lognorm - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["\u03bc", "\u03c3"],
+        "ui_param_labels": ["μ", "σ"],
         "param_descriptions": [
             "是分布的均值，必须大于0。",
             "是分布的标准差，必须大于0。"
@@ -472,12 +946,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskLognorm2": {
         "type": "lognorm2", "min_params": 2, "max_params": 2,
-        "param_names": ["mu", "sigma"],
+        "param_names": ["μ", "σ"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "指定一种对数正态分布，其中输入的均值和标准差等于相应正态分布的均值和标准差。",
         "ui_name": "Lognorm2 - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["\u03bc", "\u03c3"],
+        "ui_param_labels": ["μ", "σ"],
         "param_descriptions": [
             "是底层正态分布的均值。",
             "是底层正态分布的标准差，必须大于0。"
@@ -491,18 +965,18 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskBetaGeneral": {
         "type": "betageneral", "min_params": 4, "max_params": 4,
-        "param_names": ["alpha1", "alpha2", "Min", "Max"],
+        "param_names": ["α1", "α2", "Min", "Max"],
         "supports_shift_truncate": True,
         "category": "\u6709\u754c",
         "description": "\u5b9a\u4e49\u4e00\u4e2a\u5177\u6709\u81ea\u5b9a\u4e49\u6700\u5c0f\u503c\u548c\u6700\u5927\u503c\u7684Beta\u5206\u5e03\u3002",
         "ui_name": "BetaGeneral - \u8fde\u7eed\u3001\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["Alpha_1", "Alpha_2", "Minimum", "Maximum"],
+        "ui_param_labels": ["α1", "α2", "Min", "Max"],
         "param_descriptions": [
             "\u662f\u4e00\u4e2a\u5f62\u72b6\u53c2\u6570\uff0c\u5fc5\u987b\u5927\u4e8e 0\u3002",
             "Alpha_2 \u662f\u4e00\u4e2a\u5f62\u72b6\u53c2\u6570\uff0c\u5fc5\u987b\u5927\u4e8e 0\u3002",
             "\u662f\u5206\u5e03\u7684\u6700\u5c0f\u503c\uff0c\u5fc5\u987b\u5c0f\u4e8eMaximum\uff08\u6700\u5927\u503c\uff09\u3002",
             "\u662f\u5206\u5e03\u7684\u6700\u5927\u503c\uff0c\u5fc5\u987b\u5927\u4e8eMinimum\uff08\u6700\u5c0f\u503c\uff09\u3002"
-        ],
+        ],  
         "default_params": [2.0, 2.0, -10.0, 10.0],
         "is_discrete": False,
         "validate_params": lambda params: (
@@ -520,7 +994,7 @@ DISTRIBUTION_REGISTRY = {
         "category": "\u6709\u754c",
         "description": "定义一个具有明确最小值和最大值的Beta分布，其形状参数通过设定的最可能值和均值计算得出。",
         "ui_name": "BetaSubj - \u8fde\u7eed\u3001\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["Minimum", "Most_likely", "Mean", "Maximum"],
+        "ui_param_labels": ["Min", "M.likely", "Mean", "Max"],
         "param_descriptions": [
             "是分布的最小值，必须小于Maximum（最大值）。",
             "是分布的最可能值。",
@@ -541,12 +1015,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskBurr12": {
         "type": "burr12", "min_params": 4, "max_params": 4,
-        "param_names": ["gamma", "beta", "alpha1", "alpha2"],
+        "param_names": ["γ", "β", "α1", "α2"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "定义一个Burr 12分布。",
         "ui_name": "Burr12 - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["Gamma", "Beta", "Alpha_1", "Alpha_2"],
+        "ui_param_labels": ["γ", "β", "α1", "α2"],
         "param_descriptions": [
             "是一个位置参数。",
             "是⼀个尺度参数，必须大于 0。",
@@ -568,14 +1042,14 @@ DISTRIBUTION_REGISTRY = {
         "param_names": ["Frequency", "Severity", "Deductible", "Limit"],
         "supports_shift_truncate": True,
         "category": "\u65e0\u754c",
-        "description": "\u751f\u6210\u57fa\u4e8e\u201cSeverity\u201d\u5206\u5e03\u7684Frequency\u4e2a\u6837\u672c\u3002",
+        "description": "生成基于Severity分布的Frequency样本。",
         "ui_name": "Compound - \u8fde\u7eed\u3001\u65e0\u754c\u5206\u5e03",
         "ui_param_labels": ["Frequency", "Severity", "Deductible", "Limit"],
         "param_descriptions": [
-            "\u5b9a\u4e49\u4ece\u4e25\u91cd\u7a0b\u5ea6\u5206\u5e03\u4e2d\u62bd\u53d6\u5e76\u7d2f\u52a0\u7684\u6837\u672c\u6570\u91cf\u5206\u5e03\u3002",
-            "\u5b9a\u4e49\u63cf\u8ff0\u5404\u6837\u672c\u4e25\u91cd\u7a0b\u5ea6\u7684\u5206\u5e03\u3002",
-            "\u5b9a\u4e49\u514d\u8d54\u989d\u7684\u53ef\u9009\u53c2\u6570\uff0c\u9ed8\u8ba4\u503c\u4e3a\u4e0d\u8bbe\u7f6e\u514d\u8d54\u989d\u3002",
-            "\u5b9a\u4e49\u8d54\u507f\u9650\u989d\u7684\u53ef\u9009\u53c2\u6570\uff0c\u9ed8\u8ba4\u503c\u4e3a\u65e0\u4e0a\u9650\u3002"
+            "定义从严重程度分布中抽取并累加的样本数量分布。",
+            "定义描述各样本严重程度的分布。",
+            "定义免赔额的可选参数，默认值为不设置免赔额。",
+            "定义赔偿限额的可选参数，默认值为无上限。"
         ],
         "default_params": ["DriskPoisson(10)", "DriskLognorm(1000,100)", 0.0, float("inf")],
         "is_discrete": False,
@@ -590,16 +1064,16 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskSplice": {
         "type": "splice", "min_params": 3, "max_params": 3,
-        "param_names": ["LeftDist", "RightDist", "SplicePoint"],
+        "param_names": ["Left", "Right", "SplicePoint"],
         "supports_shift_truncate": True,
         "category": "\u62fc\u63a5",
-        "description": "\u5728 x \u7b49\u4e8eSplice\u70b9\u5904\u5c06\u5206\u5e03 #1\u548c\u5206\u5e03 #2 \u62fc\u63a5\u5728\u4e00\u8d77\u3002",
+        "description": "在 x 等于Splice点处将分布 #1 和分布 #2 拼接在一起。",
         "ui_name": "Splice - \u62fc\u63a5\u5206\u5e03",
-        "ui_param_labels": ["Dist#1", "Dist#2", "Splice_point"],
+        "ui_param_labels": ["Left", "Right", "SplicePoint"],
         "param_descriptions": [
-            "\u662f\u4e00\u4e2a\u5206\u5e03\uff0c\u6216\u6307\u5411\u5305\u542b\u8be5\u5206\u5e03\u7684\u5355\u5143\u683c\u7684\u5f15\u7528\u3002",
-            "\u662f\u4e00\u4e2a\u5206\u5e03\uff0c\u6216\u6307\u5411\u5305\u542b\u8be5\u5206\u5e03\u7684\u5355\u5143\u683c\u7684\u5f15\u7528\u3002",
-            "\u662f\u4e24\u4e2a\u5206\u5e03\u62fc\u63a5\u5728\u4e00\u8d77\u7684\u6570\u503c\u3002"
+            "是一个分布，或指向包含该分布的单元格的引用。",
+            "是一个分布，或指向包含该分布的单元格的引用。",
+            "是两个分布拼接在一起的数值。"
         ],
         "default_params": ["DriskNormal(0,1)", "DriskNormal(2,1)", 1.0],
         "is_discrete": False,
@@ -636,7 +1110,7 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskReciprocal": {
         "type": "reciprocal", "min_params": 2, "max_params": 2,
-        "param_names": ["Minimum", "Maximum"],
+        "param_names": ["Min", "Max"],
         "supports_shift_truncate": True,
         "category": "\u6709\u754c",
         "description": "定义一个Reciprocal分布。",
@@ -671,12 +1145,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskWeibull": {
         "type": "weibull", "min_params": 2, "max_params": 2,
-        "param_names": ["Alpha", "Beta"],
+        "param_names": ["α", "β"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "定义Weibull分布，这是一种连续型概率分布，其形状与尺度特性会随参数取值发生显著变化。",
         "ui_name": "Weibull - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["\u03b1", "\u03b2"],
+        "ui_param_labels": ["α", "β"],
         "param_descriptions": [
             "是一个形状参数，必须大于 0。",
             "是一个尺度参数，必须大于0。"
@@ -690,12 +1164,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskPearson5": {
         "type": "pearson5", "min_params": 2, "max_params": 2,
-        "param_names": ["alpha", "beta"],
+        "param_names": ["α", "β"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "定义一个Pearson5分布",
         "ui_name": "Pearson5 - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["\u03b1", "\u03b2"],
+        "ui_param_labels": ["α", "β"],
         "param_descriptions": [
             "是一个形状参数，必须大于 0。",
             "是一个尺度参数，必须大于 0。"
@@ -709,12 +1183,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskPearson6": {
         "type": "pearson6", "min_params": 3, "max_params": 3,
-        "param_names": ["alpha1", "alpha2", "beta"],
+        "param_names": ["α1", "α2", "β"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "定义一个Pearson6分布。",
         "ui_name": "Pearson6 - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["\u03b11", "\u03b12", "\u03b2"],
+        "ui_param_labels": ["α1", "α2", "β"],
         "param_descriptions": [
             "是一个形状参数，必须大于 0。",
             "是一个形状参数，必须大于 0。",
@@ -751,12 +1225,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskPareto": {
         "type": "pareto", "min_params": 2, "max_params": 2,
-        "param_names": ["theta", "alpha"],
+        "param_names": ["θ", "α"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "定义一个Pareto分布。",
         "ui_name": "Pareto - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["\u03b8", "\u03b1"],
+        "ui_param_labels": ["θ", "α"],
         "param_descriptions": [
             "是一个形状参数，必须大于 0。",
             "是一个尺度参数，必须大于0。"
@@ -787,12 +1261,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskCauchy": {
         "type": "cauchy", "min_params": 2, "max_params": 2,
-        "param_names": ["gamma", "beta"],
+        "param_names": ["γ", "β"],
         "supports_shift_truncate": True,
         "category": "\u65e0\u754c",
         "description": "定义一个Cauchy分布。",
         "ui_name": "Cauchy - \u8fde\u7eed\u3001\u65e0\u754c\u5206\u5e03",
-        "ui_param_labels": ["Gamma", "Beta"],
+        "ui_param_labels": ["γ", "β"],
         "param_descriptions": [
             "是一个位置参数。",
             "是一个尺度参数，必须大于 0。"
@@ -804,12 +1278,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskDagum": {
         "type": "dagum", "min_params": 4, "max_params": 4,
-        "param_names": ["gamma", "beta", "alpha1", "alpha2"],
+        "param_names": ["γ", "β", "α1", "α2"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "定义一个Dagum分布。",
         "ui_name": "Dagum - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["Gamma", "Beta", "Alpha_1", "Alpha_2"],
+        "ui_param_labels": ["γ", "β", "α1", "α2"],
         "param_descriptions": [
             "是一个位置参数。",
             "是一个尺度参数，必须大于0。",
@@ -828,12 +1302,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskDoubleTriang": {
         "type": "doubletriang", "min_params": 4, "max_params": 4,
-        "param_names": ["min_val", "m_likely", "max_val", "lower_p"],
+        "param_names": ["Min", "M.likely", "Max", "Lower P"],
         "supports_shift_truncate": True,
         "category": "\u6709\u754c",
         "description": "定义一个由三个点及下三角分布概率权重构成的Double Triangular分布，其中最小值与最大值出现的概率为零。",
         "ui_name": "DoubleTriang - \u8fde\u7eed\u3001\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["Minimum", "Most_likely", "Maximum", "Lower_Prob"],
+        "ui_param_labels": ["Min", "M.likely", "Max", "Lower P"],
         "param_descriptions": [
             "是分布的最小值，必须小于Max（最大值）。",
             "是分布的最可能值。",
@@ -851,21 +1325,25 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskPoisson": {
         "type": "poisson", "min_params": 1, "max_params": 1,
-        "param_names": ["lam"],
+        "param_names": ["λ"],
         "supports_shift_truncate": True, "description": "泊松分布",
         "ui_name": "泊松分布 (Poisson)",
-        "ui_param_labels": ["Lambda (λ)"],
+        "ui_param_labels": ["λ"],
         "default_params": [5.0],
         "is_discrete": True,
+        "description": "定义一个泊松分布，该离散型分布仅返回大于或等于零的整数值。",
+        "param_descriptions": [
+            "是分布的均值，必须大于0。"
+        ],
         "validate_params": lambda params: params[0] > 0,
         "support": lambda params: (0.0, float('inf'))
     },
     "DriskGamma": {
         "type": "gamma", "min_params": 2, "max_params": 2,
-        "param_names": ["shape", "scale"],
+        "param_names": ["α", "β"],
         "supports_shift_truncate": True, "description": "定义一个Gamma分布。Gamma分布是一个连续分布。",
         "ui_name": "伽马分布 (Gamma)",
-        "ui_param_labels": ["Alpha", "Beta"],
+        "ui_param_labels": ["α", "β"],
         "param_descriptions": [
             "是一个形状参数，必须大于 0。",
             "是一个尺度参数，必须大于 0。"
@@ -877,12 +1355,12 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskErlang": {
         "type": "erlang", "min_params": 2, "max_params": 2,
-        "param_names": ["m", "beta"],
+        "param_names": ["m", "β"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
         "description": "定义一个具有指定m和beta参数的m-erlang分布。",
         "ui_name": "Erlang - \u8fde\u7eed\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["M", "Beta"],
+        "ui_param_labels": ["m", "Beta"],
         "param_descriptions": [
             "Gamma分布的整数型参数，必须为正整数。",
             "是一个尺度参数，必须大于 0。"
@@ -899,11 +1377,11 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskBeta": {
         "type": "beta", "min_params": 2, "max_params": 2,
-        "param_names": ["a", "b"],
+        "param_names": ["α1", "α2"],
         "supports_shift_truncate": True,
         "description": "使用形状参数 alpha1 和 alpha2 来定义一个Beta分布。",
         "ui_name": "贝塔分布 (Beta)",
-        "ui_param_labels": ["Alpha_1", "Alpha_2"],
+        "ui_param_labels": ["α1", "α2"],
         "param_descriptions": [
             "是一个形状参数，必须大于 0。",
             "是一个形状参数，必须大于 0。"
@@ -915,7 +1393,7 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskChiSq": {
         "type": "chisq", "min_params": 1, "max_params": 1,
-        "param_names": ["df"],
+        "param_names": ["V"],
         "supports_shift_truncate": True,
         "description": "定义一个自由度为V的卡方分布。",
         "ui_name": "卡方分布 (Chi-Square)",
@@ -930,7 +1408,7 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskF": {
         "type": "f", "min_params": 2, "max_params": 2,
-        "param_names": ["df1", "df2"],
+        "param_names": ["V1", "V2"],
         "supports_shift_truncate": True, 
         "description": "定义一个F分布。",
         "ui_name": "F 分布 (F)",
@@ -946,11 +1424,11 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskStudent": {
         "type": "student", "min_params": 1, "max_params": 1,
-        "param_names": ["V"],
+        "param_names": ["v"],
         "supports_shift_truncate": True, 
         "description":"定义一个Student分布。",
         "ui_name": "T 分布 (Student-t)",
-        "ui_param_labels": ["自由度 (df)"],
+        "ui_param_labels": ["v"],
         "param_descriptions": ["是分布的自由度，必须是正整数。"],
         "default_params": [10.0],
         "is_discrete": False,
@@ -959,11 +1437,11 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskExpon": {
         "type": "expon", "min_params": 1, "max_params": 1,
-        "param_names": ["lam"],
+        "param_names": ["β"],
         "supports_shift_truncate": True,
         "description": "定义一个具有指定beta值的指数分布。",
         "ui_name": "指数分布 (Exponential)",
-        "ui_param_labels": ["Beta"],
+        "ui_param_labels": ["β"],
         "param_descriptions": [
             "是分布的均值，必须大于 0。"
         ],
@@ -974,11 +1452,11 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskInvgauss": {
         "type": "invgauss", "min_params": 2, "max_params": 2,
-        "param_names": ["mu", "lam"],
+        "param_names": ["μ", "λ"],
         "supports_shift_truncate": True,
         "description": "\u5b9a\u4e49\u4e00\u4e2aInvgauss\u5206\u5e03\u3002",
         "ui_name": "Inverse Gaussian (InvGauss)",
-        "ui_param_labels": ["Mu", "Lambda"],
+        "ui_param_labels": ["μ", "λ"],
         "param_descriptions": [
             "\u662f\u5206\u5e03\u7684\u5747\u503c\uff0c\u5fc5\u987b\u5927\u4e8e0\u3002",
             "\u662f\u4e00\u4e2a\u5f62\u72b6\u53c2\u6570\uff0c\u5fc5\u987b\u5927\u4e8e 0\u3002"
@@ -993,10 +1471,10 @@ DISTRIBUTION_REGISTRY = {
         "param_names": ["p"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
-        "description": "\u7528\u4e8e\u6a21\u62df\u5728\u9996\u6b21\u6210\u529f\u524d\u6240\u9700\u7684\u8bd5\u9a8c\u6b21\u6570\uff0c\u5e38\u89c1\u4e8e\u8d28\u91cf\u63a7\u5236\u548c\u53ef\u9760\u6027\u5206\u6790\u9886\u57df\u3002",
+        "description": "定义一个几何分布，其返回值表示在一系列独立试验中首次成功前所经历的失败次数。",
         "ui_name": "Geomet - \u79bb\u6563\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": ["\u6210\u529f\u6982\u7387 p (0 < p <= 1)"],
-        "param_descriptions": ["\u6bcf\u6b21\u8bd5\u9a8c\u7684\u6210\u529f\u6982\u7387\uff0c\u5176\u53d6\u503c\u8303\u56f4\u5fc5\u987b\u5927\u4e8e0\u4e14\u5c0f\u4e8e\u7b49\u4e8e1\u3002"],
+        "ui_param_labels": ["p"],
+        "param_descriptions": ["每次试验的成功概率，其取值范围必须大于等于0且小于等于1。"],
         "default_params": [0.5],
         "is_discrete": True,
         "validate_params": lambda params: params[0] > 0 and params[0] <= 1,
@@ -1007,17 +1485,15 @@ DISTRIBUTION_REGISTRY = {
         "param_names": ["n", "D", "M"],
         "supports_shift_truncate": True,
         "category": "\u6709\u754c",
-        "description": "\u7528\u4e8e\u6a21\u62df\u4e0d\u653e\u56de\u62bd\u6837\u8fc7\u7a0b\uff0c\u5e38\u89c1\u4e8e\u8d28\u91cf\u63a7\u5236\u53ca\u76f8\u5173\u5e94\u7528\u9886\u57df\u3002",
+        "description": "定义一个超几何分布，该离散型分布仅返回非负整数值。",
         "ui_name": "Hypergeo - \u79bb\u6563\u3001\u6709\u754c\u5206\u5e03",
         "ui_param_labels": [
-            "\u6837\u672c\u5bb9\u91cf n",
-            "\u76ee\u6807\u7269\u54c1\u6570 D",
-            "\u603b\u4f53\u89c4\u6a21 M"
+           "n", "D", "M"
         ],
         "param_descriptions": [
-            "\u6837\u672c\u5bb9\u91cf\uff0c\u5fc5\u987b\u4e3a\u6b63\u6574\u6570\u3002",
-            "\u8868\u793a\u76ee\u6807\u7c7b\u578b\u7684\u7269\u54c1\u6570\u91cf\uff0c\u5fc5\u987b\u4e3a\u6b63\u6574\u6570\u3002",
-            "\u603b\u4f53\u89c4\u6a21\uff0c\u5fc5\u987b\u4e3a\u6b63\u6574\u6570\u503c\u3002"
+            "样本容量，必须为正整数值。",
+            "表示相关类型的物品数量，必须为正整数。",
+            "总体规模，必须为正整数值。"
         ],
         "default_params": [10.0, 20.0, 30.0],
         "is_discrete": True,
@@ -1036,18 +1512,15 @@ DISTRIBUTION_REGISTRY = {
     },
     "DriskIntuniform": {
         "type": "intuniform", "min_params": 2, "max_params": 2,
-        "param_names": ["min_val", "max_val"],
+        "param_names": ["Min", "Max"],
         "supports_shift_truncate": True,
         "category": "\u6709\u754c",
-        "description": "\u7528\u4e8e\u6a21\u62df\u5728\u7ed9\u5b9a\u6574\u6570\u533a\u95f4\u5185\u7b49\u6982\u7387\u53d6\u503c\u7684\u79bb\u6563\u8fc7\u7a0b\uff0c\u5e38\u7528\u4e8e\u79bb\u6563\u5e73\u5747\u573a\u666f\u5206\u6790\u3002",
+        "description": "定义一个返回最小值和最大值范围内整数的等概率分布。",
         "ui_name": "Intuniform - \u79bb\u6563\u3001\u6709\u754c\u5206\u5e03",
-        "ui_param_labels": [
-            "\u6700\u5c0f\u503c",
-            "\u6700\u5927\u503c"
-        ],
+        "ui_param_labels": ["Min", "Max"],
         "param_descriptions": [
-            "\u6574\u6570\u533a\u95f4\u7684\u4e0b\u754c\uff0c\u5fc5\u987b\u4e3a\u6574\u6570\u503c\u3002",
-            "\u6574\u6570\u533a\u95f4\u7684\u4e0a\u754c\uff0c\u5fc5\u987b\u4e3a\u6574\u6570\u503c\uff0c\u4e14\u5fc5\u987b\u5927\u4e8e\u6700\u5c0f\u503c\u3002"
+            "是分布的最小值，必须小于或等于Maximum（最大值）。",
+            "是分布的最大值，必须大于或等于Minimum（最小值）。"
         ],
         "default_params": [0.0, 10.0],
         "is_discrete": True,
@@ -1064,15 +1537,14 @@ DISTRIBUTION_REGISTRY = {
         "param_names": ["s", "p"],
         "supports_shift_truncate": True,
         "category": "\u5de6\u7aef\u6709\u754c",
-        "description": "\u7528\u4e8e\u6a21\u62df\u5728\u8fbe\u5230\u6307\u5b9a\u6210\u529f\u6b21\u6570\u524d\u6240\u53d1\u751f\u7684\u5931\u8d25\u6b21\u6570\uff0c\u5e38\u89c1\u4e8e\u8d28\u91cf\u63a7\u5236\u3001\u53ef\u9760\u6027\u5206\u6790\u4e0e\u8fc7\u7a0b\u62bd\u6837\u9886\u57df\u3002",
+        "description": "定义一个负二项分布，该离散型分布仅返回大于或等于零的整数值",
         "ui_name": "Negbin - \u79bb\u6563\u3001\u5de6\u7aef\u6709\u754c\u5206\u5e03",
         "ui_param_labels": [
-            "\u6210\u529f\u6b21\u6570 s",
-            "\u6210\u529f\u6982\u7387 p"
+            "s", "p"
         ],
         "param_descriptions": [
-            "\u6210\u529f\u6b21\u6570\uff0c\u5fc5\u987b\u4e3a\u6b63\u6574\u6570\u3002",
-            "\u6bcf\u6b21\u8bd5\u9a8c\u7684\u6210\u529f\u6982\u7387\uff0c\u5176\u53d6\u503c\u8303\u56f4\u5fc5\u987b\u5927\u4e8e0\u4e14\u5c0f\u4e8e\u7b49\u4e8e1\u3002"
+            "成功次数，必须为正整数。",
+            "每次试验的成功概率，其取值范围必须大于等于0且小于等于1。"
         ],
         "default_params": [1.0, 0.5],
         "is_discrete": True,
@@ -1091,9 +1563,11 @@ DISTRIBUTION_REGISTRY = {
     "DriskBernoulli": {
         "type": "bernoulli", "min_params": 1, "max_params": 1,
         "param_names": ["p"],
-        "supports_shift_truncate": True, "description": "伯努利分布",
+        "supports_shift_truncate": True, 
+        "description": "定义一个伯努利分布，其中每次试验的成功概率为p。该离散分布仅返回大于或等于零的整数值。",
+        "param_descriptions": ["每次试验的成功概率，其取值范围必须大于等于0且小于等于1。"],
         "ui_name": "伯努利分布 (Bernoulli)",
-        "ui_param_labels": ["成功概率 p"],
+        "ui_param_labels": ["p"],
         "default_params": [0.5],
         "is_discrete": True,
         "validate_params": lambda params: 0 < params[0] < 1,
@@ -1104,7 +1578,7 @@ DISTRIBUTION_REGISTRY = {
         "min_params": 3,
         "max_params": 3,
         "validate_params": lambda params: params[0] <= params[1] <= params[2],
-        "param_names": ["a", "c", "b"],
+        "param_names": ["Min", "M.likely", "Max"],
         "supports_shift_truncate": True,
         "description": "定义一个Triangular分布，其最小值与最大值处的发生概率为零。",
         "param_descriptions": [
@@ -1113,7 +1587,7 @@ DISTRIBUTION_REGISTRY = {
             "是分布的最大值，必须大于Min（最小值）。"
         ],
         "ui_name": "三角分布 (Triangular)",
-        "ui_param_labels": ["最小值 (a)", "最可能值 (c)", "最大值 (b)"],
+        "ui_param_labels": ["Min", "M.likely", "Max"],
         "default_params": [0.0, 0.5, 1.0],
         "is_discrete": False,
         "support": lambda params: (params[0], params[2])
@@ -1125,9 +1599,13 @@ DISTRIBUTION_REGISTRY = {
         "validate_params": lambda params: params[0] > 0 and params[0].is_integer() and 0 < params[1] < 1,
         "param_names": ["n", "p"],
         "supports_shift_truncate": True,
-        "description": "二项分布 (Binomial)",
+        "description": "定义一个二项分布，其中试验次数为N，每次试验的成功概率为P。该离散分布仅返回大于或等于零的整数值。",
+        "param_descriptions  ":[
+            "试验或抽样的次数",
+            "每次试验的成功概率，其取值范围必须大于等于0且小于等于1。"
+        ],
         "ui_name": "二项分布 (Binomial)",
-        "ui_param_labels": ["试验次数 (n)", "成功概率 (p)"],
+        "ui_param_labels": ["n", "p"],
         "default_params": [10.0, 0.5],
         "is_discrete": True,
         "support": lambda params: (0.0, float(params[0]))
@@ -1137,7 +1615,7 @@ DISTRIBUTION_REGISTRY = {
         "min_params": 5,
         "max_params": 5,
         "validate_params": lambda params: params[0] <= params[1] <= params[2] and 0 <= params[3] < params[4] <= 1,
-        "param_names": ["Bottom_value", "Most_likely_value", "Top_value", "Bottom_%", "Top_%"],
+        "param_names": ["Bottom", "M.likely", "Top", "Bottom%", "Top%"],
         "supports_shift_truncate": True,
         "description": "定义一个三角分布，该分布具有三个点，其中 一个位于最可能值，另外两个位于指定的底部和顶部百分位数处。",
         "param_descriptions": [
@@ -1148,7 +1626,7 @@ DISTRIBUTION_REGISTRY = {
             "指在分布中Top左侧区域面积占总面积的百分比，其取值必须介于0到100之间。"
         ],
         "ui_name": "三参数三角分布 (Trigen)",
-        "ui_param_labels": ["L (α分位数)", "M (众数)", "U (β分位数)", "α (概率)", "β (概率)"],
+        "ui_param_labels": ["Bottom", "M.likely", "Top", "Bottom%", "Top%"],
         "default_params": [0.0, 0.5, 1.0, 0.25, 0.75],
         "is_discrete": False,
         "support": lambda params: (float('-inf'), float('inf'))  # 实际支撑由转换后的三角决定，这里留空
@@ -1162,7 +1640,7 @@ DISTRIBUTION_REGISTRY = {
         "supports_shift_truncate": True,
         "description": "定义一个由最小值和最大值确定范围、包含n个点的Cumul分布。",
         "ui_name": "累积分布 (Cumul)",
-        "ui_param_labels": ["Minimum", "Maximum", "X-Table", "P-Table"],
+        "ui_param_labels": ["Min", "Max", "X-Table", "P-Table"],
         "param_descriptions": [
             "是分布的最小值，必须小于Maximum（最大值）。",
             "是分布的最大值，必须大于Minimum（最小值）。",
@@ -1178,9 +1656,12 @@ DISTRIBUTION_REGISTRY = {
         "min_params": 1,
         "max_params": 1,
         "validate_params": lambda params: True,
-        "param_names": ["x_vals"],
+        "param_names": ["X-Table"],
         "supports_shift_truncate": True,
-        "description": "Discrete uniform distribution (X-table)",
+        "description": "定义一个离散均匀分布，该分布具有任意数量的可能结果，且每个结果发生的概率相等。",
+        "param_descriptions": [
+            "指定每个可能结果对应的输入值。"
+        ],
         "ui_name": "Discrete Uniform (DUniform)",
         "ui_param_labels": ["X-Table"],
         "default_params": ["1,2,3"],
@@ -1192,11 +1673,15 @@ DISTRIBUTION_REGISTRY = {
         "min_params": 2,
         "max_params": 2,
         "validate_params": lambda params: True,
-        "param_names": ["x_vals", "p_vals"],
+        "param_names": ["X-Table", "P-Table"],
         "supports_shift_truncate": True,
-        "description": "离散分布 (Discrete)",
+        "description": "定义一个具有指定结果数量的离散分布，可输入任意数量的可能结果。",
+        "param_descriptions": [
+            "指定每个可能结果对应的输入值。",
+            "用于指定各结果出现概率的权重值。权重值p必须满足：所有元素>=0，且总和＞0。"
+        ],
         "ui_name": "离散分布 (Discrete)",
-        "ui_param_labels": ["X值列表", "P值列表"],
+        "ui_param_labels": ["X-Table", "P-Table"],
         "default_params": ["1,2,3", "0.2,0.3,0.5"],
         "is_discrete": True,
         "support": lambda params: (float('-inf'), float('inf'))

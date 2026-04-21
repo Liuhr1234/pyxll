@@ -770,7 +770,7 @@ class DriskChartFactory:
               }
 
               // 最终宽度仍需受上限约束（放宽以配合 minPxTarget）。
-              w = Math.min(w, 10.0);
+              w = Math.min(w, 5.0);
 
               var currentW = gd.data[barIdx[0]].width;
               if (Array.isArray(currentW)) {

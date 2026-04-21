@@ -1,7 +1,7 @@
 """BetaGeneral distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -77,15 +77,33 @@ def betageneral_generator_single(rng: np.random.Generator, params: List[float]) 
 
 def betageneral_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    alpha1 = float(params[0])
-    alpha2 = float(params[1])
-    min_val = float(params[2])
-    max_val = float(params[3])
-    _validate_params(alpha1, alpha2, min_val, max_val)
-    return np.asarray(min_val + _span(min_val, max_val) * rng.beta(alpha1, alpha2, size=n_samples), dtype=float)
+    alpha1 = params[0]
+    alpha2 = params[1]
+    min_val = params[2]
+    max_val = params[3]
+
+    # 广播为数组
+    if not isinstance(alpha1, np.ndarray):
+        alpha1 = np.full(n_samples, float(alpha1))
+    if not isinstance(alpha2, np.ndarray):
+        alpha2 = np.full(n_samples, float(alpha2))
+    if not isinstance(min_val, np.ndarray):
+        min_val = np.full(n_samples, float(min_val))
+    if not isinstance(max_val, np.ndarray):
+        max_val = np.full(n_samples, float(max_val))
+
+    # 验证（逐个元素，可简化为向量化检查，这里保持简单）
+    valid = (alpha1 > 0) & (alpha2 > 0) & (max_val > min_val)
+    if not np.all(valid):
+        raise ValueError("BetaGeneral parameters invalid")
+
+    span = max_val - min_val
+    # rng.beta 支持数组参数 a, b
+    samples = min_val + span * rng.beta(alpha1, alpha2, size=n_samples)
+    return samples.astype(float)
 
 
 class BetaGeneralDistribution(DistributionBase):

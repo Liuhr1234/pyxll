@@ -1,7 +1,7 @@
 """Pert distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.special import betainc, betaincinv
@@ -83,15 +83,47 @@ def pert_generator_single(rng: np.random.Generator, params: List[float]) -> floa
 
 def pert_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    min_val = float(params[0])
-    m_likely = float(params[1])
-    max_val = float(params[2])
-    _, alpha1, alpha2 = _shape_params(min_val, m_likely, max_val)
-    z = np.asarray(betaincinv(alpha1, alpha2, rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)), dtype=float)
-    return np.asarray(min_val + (max_val - min_val) * z, dtype=float)
+    """
+    向量化生成 Pert 分布样本，支持参数为标量或数组（每个迭代不同参数）。
+
+    Args:
+        rng: NumPy 随机生成器
+        params: [min, likely, max]，每个可以是标量或长度为 n_samples 的数组
+        n_samples: 样本数量
+
+    Returns:
+        长度为 n_samples 的样本数组
+    """
+    min_val = params[0]
+    m_likely = params[1]
+    max_val = params[2]
+
+    # 将标量广播为数组
+    if not isinstance(min_val, np.ndarray):
+        min_val = np.full(n_samples, float(min_val))
+    if not isinstance(m_likely, np.ndarray):
+        m_likely = np.full(n_samples, float(m_likely))
+    if not isinstance(max_val, np.ndarray):
+        max_val = np.full(n_samples, float(max_val))
+
+    # 向量化计算 α1, α2
+    mean_val = (min_val + 4.0 * m_likely + max_val) / 6.0
+    span = max_val - min_val
+    alpha1 = 6.0 * (mean_val - min_val) / span
+    alpha2 = 6.0 * (max_val - mean_val) / span
+
+    # 生成均匀随机数
+    u = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
+
+    # 使用 scipy.stats.beta.ppf 支持数组参数
+    z = scipy_beta.ppf(u, alpha1, alpha2)
+
+    # 计算最终样本
+    samples = min_val + span * z
+    return samples.astype(float)
 
 
 class PertDistribution(DistributionBase):

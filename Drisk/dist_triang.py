@@ -40,29 +40,37 @@ def triang_generator_single(rng: np.random.Generator, params: List[float]) -> fl
         return b - math.sqrt((1 - u) * (b - a) * (b - c))
 
 # -------------------- 向量化批量生成器（带参数保护） --------------------
-def triang_generator_vectorized(rng: np.random.Generator, params: List[float], n_samples: int) -> np.ndarray:
-    """
-    批量生成三角分布随机数（向量化实现）。
-    参数:
-        rng: NumPy 随机数生成器
-        params: [a, c, b]
-        n_samples: 样本数量
-    返回: 长度为 n_samples 的 NumPy 数组
-    """
-    a, c, b = params[0], params[1], params[2]
-    if c > b:
-        print(f"警告: 三角分布参数顺序可能错误，在生成器中交换 c={c} 与 b={b}")
-        c, b = b, c
-    _validate_params(a, c, b)
+def triang_generator_vectorized(rng: np.random.Generator, params: List[Union[float, np.ndarray]], n_samples: int) -> np.ndarray:
+    a = params[0]
+    c = params[1]
+    b = params[2]
+
+    # 广播
+    if not isinstance(a, np.ndarray):
+        a = np.full(n_samples, float(a))
+    if not isinstance(c, np.ndarray):
+        c = np.full(n_samples, float(c))
+    if not isinstance(b, np.ndarray):
+        b = np.full(n_samples, float(b))
+
+    # 修正顺序（如果 c > b）
+    swap = c > b
+    if np.any(swap):
+        c_swapped = np.where(swap, b, c)
+        b_swapped = np.where(swap, c, b)
+        c = c_swapped
+        b = b_swapped
+
+    if np.any((a >= c) | (c >= b)):
+        raise ValueError("Triangular distribution requires a < c < b")
 
     fc = (c - a) / (b - a)
     u = rng.random(n_samples)
-    # 使用布尔索引分两支生成
     left_mask = u <= fc
-    right_mask = ~left_mask
     samples = np.empty(n_samples, dtype=float)
-    samples[left_mask] = a + np.sqrt(u[left_mask] * (b - a) * (c - a))
-    samples[right_mask] = b - np.sqrt((1 - u[right_mask]) * (b - a) * (b - c))
+    samples[left_mask] = a[left_mask] + np.sqrt(u[left_mask] * (b[left_mask] - a[left_mask]) * (c[left_mask] - a[left_mask]))
+    right_mask = ~left_mask
+    samples[right_mask] = b[right_mask] - np.sqrt((1 - u[right_mask]) * (b[right_mask] - a[right_mask]) * (b[right_mask] - c[right_mask]))
     return samples
 
 # 统一生成器接口

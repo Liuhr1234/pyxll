@@ -1,7 +1,7 @@
 """Logistic distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -56,14 +56,22 @@ def logistic_generator_single(rng: np.random.Generator, params: List[float]) -> 
 
 def logistic_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    alpha = float(params[0])
-    beta = float(params[1])
-    dist = _create_dist(alpha, beta)
-    q = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    return np.asarray(dist.ppf(q), dtype=float)
+    alpha = params[0]
+    beta = params[1]
+
+    if not isinstance(alpha, np.ndarray):
+        alpha = np.full(n_samples, float(alpha))
+    if not isinstance(beta, np.ndarray):
+        beta = np.full(n_samples, float(beta))
+
+    if np.any(beta <= 0):
+        raise ValueError("Logistic requires beta > 0")
+
+    from scipy.stats import logistic
+    return logistic.rvs(loc=alpha, scale=beta, size=n_samples, random_state=rng)
 
 
 class LogisticDistribution(DistributionBase):

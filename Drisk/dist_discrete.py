@@ -175,16 +175,24 @@ class DiscreteDistribution(DistributionBase):
         # 从 markers 获取 x_vals 和 p_vals（已解析为列表）
         x_vals = markers.get('x_vals')
         p_vals = markers.get('p_vals')
+        
+        # 修改处：UI 层（ui_modeler.py）提取到的单元格引用数据（如 E5:J5 展平后的字符串）是存放在 params 列表中传给后端的。
+        # 由于 markers 字典里根本没有这两项数据，触发了 if x_vals is None or p_vals is None: 条件，直接退化到了写死的默认示例 [1, 2, 3] 和 [0.2, 0.3, 0.5]
+        # 增加对 params 的读取兜底逻辑
         if x_vals is None or p_vals is None:
-            # 默认示例
-            x_vals = [1, 2, 3]
-            p_vals = [0.2, 0.3, 0.5]
-        else:
-            # 如果 x_vals 和 p_vals 是字符串，则解析它们
-            if isinstance(x_vals, str):
-                x_vals = _extract_numbers_from_input(x_vals)
-            if isinstance(p_vals, str):
-                p_vals = _extract_numbers_from_input(p_vals)
+            if params and len(params) >= 2:
+                x_vals = params[0]
+                p_vals = params[1]
+            else:
+                # 默认示例
+                x_vals = [1, 2, 3]
+                p_vals = [0.2, 0.3, 0.5]
+
+        # 统一进行字符串解析（如果从 params 读出来的是逗号分隔的字符串）
+        if isinstance(x_vals, str):
+            x_vals = _extract_numbers_from_input(x_vals)
+        if isinstance(p_vals, str):
+            p_vals = _extract_numbers_from_input(p_vals)
 
         # 确保 x_vals 和 p_vals 是浮点数列表
         x_vals = [float(x) for x in x_vals]

@@ -1,7 +1,7 @@
 """BetaSubj distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -149,15 +149,32 @@ def betasubj_generator_single(rng: np.random.Generator, params: List[float]) -> 
 
 def betasubj_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    min_val = float(params[0])
-    m_likely = float(params[1])
-    mean_val = float(params[2])
-    max_val = float(params[3])
-    alpha1, alpha2 = _solve_alpha_params(min_val, m_likely, mean_val, max_val)
-    return np.asarray(min_val + _span(min_val, max_val) * rng.beta(alpha1, alpha2, size=n_samples), dtype=float)
+    min_val = params[0]
+    m_likely = params[1]
+    mean_val = params[2]
+    max_val = params[3]
+
+    # 广播
+    if not isinstance(min_val, np.ndarray):
+        min_val = np.full(n_samples, float(min_val))
+    if not isinstance(m_likely, np.ndarray):
+        m_likely = np.full(n_samples, float(m_likely))
+    if not isinstance(mean_val, np.ndarray):
+        mean_val = np.full(n_samples, float(mean_val))
+    if not isinstance(max_val, np.ndarray):
+        max_val = np.full(n_samples, float(max_val))
+
+    # 由于 _solve_alpha_params 目前只支持标量，我们需要对每个迭代分别求解
+    # 向量化求解 alpha1, alpha2 比较复杂，因此采用逐迭代循环
+    samples = np.empty(n_samples, dtype=float)
+    for i in range(n_samples):
+        a1, a2 = _solve_alpha_params(min_val[i], m_likely[i], mean_val[i], max_val[i])
+        span = max_val[i] - min_val[i]
+        samples[i] = min_val[i] + span * rng.beta(a1, a2)
+    return samples
 
 
 class BetaSubjDistribution(DistributionBase):

@@ -1,7 +1,7 @@
 """Weibull distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -67,13 +67,21 @@ def weibull_generator_single(rng: np.random.Generator, params: List[float]) -> f
 
 def weibull_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    alpha = float(params[0])
-    beta = float(params[1])
-    _validate_params(alpha, beta)
-    return np.asarray(beta * rng.weibull(alpha, size=n_samples), dtype=float)
+    alpha = params[0]
+    beta = params[1]
+
+    if not isinstance(alpha, np.ndarray):
+        alpha = np.full(n_samples, float(alpha))
+    if not isinstance(beta, np.ndarray):
+        beta = np.full(n_samples, float(beta))
+
+    if np.any((alpha <= 0) | (beta <= 0)):
+        raise ValueError("Weibull requires alpha>0, beta>0")
+
+    return beta * rng.weibull(alpha, size=n_samples)
 
 
 class WeibullDistribution(DistributionBase):

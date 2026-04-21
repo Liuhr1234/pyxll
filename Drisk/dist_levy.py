@@ -1,7 +1,7 @@
 """Levy distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -60,14 +60,22 @@ def levy_generator_single(rng: np.random.Generator, params: List[float]) -> floa
 
 def levy_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    a = float(params[0])
-    c = float(params[1])
-    dist = _create_dist(a, c)
-    q = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    return np.asarray(dist.ppf(q), dtype=float)
+    a = params[0]
+    c = params[1]
+
+    if not isinstance(a, np.ndarray):
+        a = np.full(n_samples, float(a))
+    if not isinstance(c, np.ndarray):
+        c = np.full(n_samples, float(c))
+
+    if np.any(c <= 0):
+        raise ValueError("Levy requires c > 0")
+
+    from scipy.stats import levy
+    return levy.rvs(loc=a, scale=c, size=n_samples, random_state=rng)
 
 
 class LevyDistribution(DistributionBase):

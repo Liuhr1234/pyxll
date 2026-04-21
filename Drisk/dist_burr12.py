@@ -1,7 +1,7 @@
 """Burr12 distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import scipy.special as sp
@@ -165,20 +165,34 @@ def burr12_generator_single(rng: np.random.Generator, params: List[float]) -> fl
 
 def burr12_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    gamma = float(params[0])
-    beta = float(params[1])
-    alpha1 = float(params[2])
-    alpha2 = float(params[3])
-    _validate_params(gamma, beta, alpha1, alpha2)
+    gamma = params[0]
+    beta = params[1]
+    alpha1 = params[2]
+    alpha2 = params[3]
+
+    # 广播
+    if not isinstance(gamma, np.ndarray):
+        gamma = np.full(n_samples, float(gamma))
+    if not isinstance(beta, np.ndarray):
+        beta = np.full(n_samples, float(beta))
+    if not isinstance(alpha1, np.ndarray):
+        alpha1 = np.full(n_samples, float(alpha1))
+    if not isinstance(alpha2, np.ndarray):
+        alpha2 = np.full(n_samples, float(alpha2))
+
+    # 验证
+    valid = (beta > 0) & (alpha1 > 0) & (alpha2 > 0)
+    if not np.all(valid):
+        raise ValueError("Burr12 parameters invalid")
 
     q = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
     inner = np.expm1(-np.log1p(-q) / alpha2)
     inner = np.clip(inner, 0.0, np.inf)
-    return np.asarray(gamma + beta * np.power(inner, 1.0 / alpha1), dtype=float)
-
+    samples = gamma + beta * np.power(inner, 1.0 / alpha1)
+    return samples.astype(float)
 
 class Burr12Distribution(DistributionBase):
     """Burr12 theoretical distribution with truncation support."""

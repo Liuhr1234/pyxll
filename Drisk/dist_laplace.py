@@ -1,7 +1,7 @@
 """Laplace distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -61,14 +61,23 @@ def laplace_generator_single(rng: np.random.Generator, params: List[float]) -> f
 
 def laplace_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    mu = float(params[0])
-    sigma = float(params[1])
-    dist = _create_dist(mu, sigma)
-    q = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    return np.asarray(dist.ppf(q), dtype=float)
+    mu = params[0]
+    sigma = params[1]
+
+    if not isinstance(mu, np.ndarray):
+        mu = np.full(n_samples, float(mu))
+    if not isinstance(sigma, np.ndarray):
+        sigma = np.full(n_samples, float(sigma))
+
+    if np.any(sigma <= 0):
+        raise ValueError("Laplace requires sigma > 0")
+
+    from scipy.stats import laplace
+    scale = sigma / np.sqrt(2.0)
+    return laplace.rvs(loc=mu, scale=scale, size=n_samples, random_state=rng)
 
 
 class LaplaceDistribution(DistributionBase):

@@ -1,7 +1,7 @@
 """Lognorm2 distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -60,14 +60,22 @@ def lognorm2_generator_single(rng: np.random.Generator, params: List[float]) -> 
 
 def lognorm2_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    mu = float(params[0])
-    sigma = float(params[1])
-    dist = _create_dist(mu, sigma)
+    mu = np.asarray(params[0])
+    sigma = np.asarray(params[1])
+    # 若为标量则广播至 n_samples
+    if mu.ndim == 0:
+        mu = np.full(n_samples, mu)
+    if sigma.ndim == 0:
+        sigma = np.full(n_samples, sigma)
+    # 生成均匀随机数
     q = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    return np.asarray(dist.ppf(q), dtype=float)
+    # 使用 scipy.stats.lognorm.ppf 向量化计算
+    from scipy.stats import lognorm
+    samples = lognorm.ppf(q, s=sigma, scale=np.exp(mu))
+    return samples.astype(float)
 
 
 class Lognorm2Distribution(DistributionBase):

@@ -39,17 +39,31 @@ def fatiguelife_generator_single(rng: np.random.Generator, params: List[float]) 
 
 
 def fatiguelife_generator_vectorized(
-    rng: np.random.Generator, params: List[float], n_samples: int
+    rng: np.random.Generator, params: List[Union[float, np.ndarray]], n_samples: int
 ) -> np.ndarray:
-    y = float(params[0])
-    beta = float(params[1])
-    alpha = float(params[2])
-    _validate_params(y, beta, alpha)
+    y = params[0]
+    beta = params[1]
+    alpha = params[2]
+
+    for i, arr in enumerate([y, beta, alpha]):
+        if not isinstance(arr, np.ndarray):
+            arr = np.full(n_samples, float(arr))
+        else:
+            arr = arr.astype(float)
+        if i == 0:
+            y_arr = arr
+        elif i == 1:
+            beta_arr = arr
+        else:
+            alpha_arr = arr
+
+    if np.any((beta_arr <= 0) | (alpha_arr <= 0)):
+        raise ValueError("FatigueLife requires beta>0, alpha>0")
 
     z = rng.normal(size=n_samples)
-    t = 0.5 * alpha * z
-    return (y + beta * (t + np.sqrt(t * t + 1.0)) ** 2).astype(float)
-
+    t = 0.5 * alpha_arr * z
+    samples = y_arr + beta_arr * (t + np.sqrt(t*t + 1.0))**2
+    return samples
 
 def fatiguelife_generator(
     rng: np.random.Generator,

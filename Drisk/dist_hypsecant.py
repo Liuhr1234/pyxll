@@ -80,14 +80,29 @@ def hypsecant_generator_single(
 
 
 def hypsecant_generator_vectorized(
-    rng: np.random.Generator,
-    params: List[float],
-    n_samples: int,
+    rng: np.random.Generator, params: List[Union[float, np.ndarray]], n_samples: int
 ) -> np.ndarray:
-    gamma = float(params[0])
-    beta = float(params[1])
+    gamma = params[0]
+    beta = params[1]
+
+    if not isinstance(gamma, np.ndarray):
+        gamma = np.full(n_samples, float(gamma))
+    if not isinstance(beta, np.ndarray):
+        beta = np.full(n_samples, float(beta))
+
+    if np.any(beta <= 0):
+        raise ValueError("HypSecant requires beta > 0")
+
     q = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    return np.array([hypsecant_ppf(float(v), gamma, beta) for v in q], dtype=float)
+    # 使用向量化计算
+    tan_val = np.tan(np.pi * (q - 0.5))
+    # 处理 tan_val <= 0 的情况，使用 np.where
+    z = np.where(tan_val > 0, (2.0 / np.pi) * np.log(tan_val), -np.inf)
+    samples = gamma + beta * z
+    # 边界处理
+    samples = np.where(q <= 0.0, -np.inf, samples)
+    samples = np.where(q >= 1.0, np.inf, samples)
+    return samples
 
 
 class HypSecantDistribution(DistributionBase):

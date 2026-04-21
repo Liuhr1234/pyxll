@@ -1,7 +1,7 @@
 """Pareto distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -64,14 +64,22 @@ def pareto_generator_single(rng: np.random.Generator, params: List[float]) -> fl
 
 def pareto_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    theta = float(params[0])
-    alpha = float(params[1])
-    dist = _create_dist(theta, alpha)
-    q = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    return np.asarray(dist.ppf(q), dtype=float)
+    theta = params[0]
+    alpha = params[1]
+
+    if not isinstance(theta, np.ndarray):
+        theta = np.full(n_samples, float(theta))
+    if not isinstance(alpha, np.ndarray):
+        alpha = np.full(n_samples, float(alpha))
+
+    if np.any((theta <= 0) | (alpha <= 0)):
+        raise ValueError("Pareto requires theta>0, alpha>0")
+
+    from scipy.stats import pareto
+    return pareto.rvs(b=theta, loc=0.0, scale=alpha, size=n_samples, random_state=rng)
 
 
 class ParetoDistribution(DistributionBase):

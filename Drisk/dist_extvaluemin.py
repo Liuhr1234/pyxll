@@ -36,12 +36,18 @@ def extvaluemin_generator_single(rng: np.random.Generator, params: List[float]) 
 
 
 def extvaluemin_generator_vectorized(
-    rng: np.random.Generator, params: List[float], n_samples: int
+    rng: np.random.Generator, params: List[Union[float, np.ndarray]], n_samples: int
 ) -> np.ndarray:
-    a = float(params[0])
-    b = float(params[1])
-    _validate_params(a, b)
-    return (-rng.gumbel(loc=-a, scale=b, size=n_samples)).astype(float)
+    a = params[0]
+    b = params[1]
+    if not isinstance(a, np.ndarray):
+        a = np.full(n_samples, float(a))
+    if not isinstance(b, np.ndarray):
+        b = np.full(n_samples, float(b))
+    if np.any(b <= 0):
+        raise ValueError("ExtvalueMin requires b > 0")
+    from scipy.stats import gumbel_l
+    return gumbel_l.rvs(loc=a, scale=b, size=n_samples, random_state=rng)
 
 
 def extvaluemin_generator(

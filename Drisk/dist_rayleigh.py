@@ -1,7 +1,7 @@
 """Rayleigh distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -62,12 +62,18 @@ def rayleigh_generator_single(rng: np.random.Generator, params: List[float]) -> 
 
 def rayleigh_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    b = float(params[0])
-    _validate_params(b)
-    return np.asarray(rng.rayleigh(scale=b, size=n_samples), dtype=float)
+    b = params[0]
+
+    if not isinstance(b, np.ndarray):
+        b = np.full(n_samples, float(b))
+
+    if np.any(b <= 0):
+        raise ValueError("Rayleigh requires b > 0")
+
+    return rng.rayleigh(scale=b, size=n_samples).astype(float)
 
 
 class RayleighDistribution(DistributionBase):

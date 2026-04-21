@@ -1,7 +1,7 @@
 """Pearson6 distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -76,18 +76,30 @@ def pearson6_generator_single(rng: np.random.Generator, params: List[float]) -> 
 
 def pearson6_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    alpha1 = float(params[0])
-    alpha2 = float(params[1])
-    beta = float(params[2])
-    _validate_params(alpha1, alpha2, beta)
+    alpha1 = params[0]
+    alpha2 = params[1]
+    beta = params[2]
 
-    u = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    t = np.asarray(betaincinv(alpha1, alpha2, u), dtype=float)
-    t = np.clip(t, 0.0, 1.0 - np.finfo(float).eps)
-    return np.asarray(beta * t / (1.0 - t), dtype=float)
+    for i, arr in enumerate([alpha1, alpha2, beta]):
+        if not isinstance(arr, np.ndarray):
+            arr = np.full(n_samples, float(arr))
+        else:
+            arr = arr.astype(float)
+        if i == 0:
+            alpha1_arr = arr
+        elif i == 1:
+            alpha2_arr = arr
+        else:
+            beta_arr = arr
+
+    if np.any((alpha1_arr <= 0) | (alpha2_arr <= 0) | (beta_arr <= 0)):
+        raise ValueError("Pearson6 requires all parameters > 0")
+
+    from scipy.stats import betaprime
+    return betaprime.rvs(a=alpha1_arr, b=alpha2_arr, scale=beta_arr, size=n_samples, random_state=rng)
 
 
 class Pearson6Distribution(DistributionBase):

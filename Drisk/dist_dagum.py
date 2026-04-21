@@ -63,18 +63,28 @@ def dagum_generator_single(rng: np.random.Generator, params: List[float]) -> flo
 
 
 def dagum_generator_vectorized(
-    rng: np.random.Generator, params: List[float], n_samples: int
+    rng: np.random.Generator, params: List[Union[float, np.ndarray]], n_samples: int
 ) -> np.ndarray:
-    gamma = float(params[0])
-    beta = float(params[1])
-    alpha1 = float(params[2])
-    alpha2 = float(params[3])
-    _validate_params(gamma, beta, alpha1, alpha2)
+    gamma = params[0]
+    beta = params[1]
+    alpha1 = params[2]
+    alpha2 = params[3]
+
+    # 广播
+    if not isinstance(gamma, np.ndarray):
+        gamma = np.full(n_samples, float(gamma))
+    if not isinstance(beta, np.ndarray):
+        beta = np.full(n_samples, float(beta))
+    if not isinstance(alpha1, np.ndarray):
+        alpha1 = np.full(n_samples, float(alpha1))
+    if not isinstance(alpha2, np.ndarray):
+        alpha2 = np.full(n_samples, float(alpha2))
+
     u = rng.random(size=n_samples)
-    return np.array(
-        [dagum_ppf(float(q), gamma, beta, alpha1, alpha2) for q in u],
-        dtype=float,
-    )
+    samples = np.empty(n_samples, dtype=float)
+    for i in range(n_samples):
+        samples[i] = dagum_ppf(u[i], gamma[i], beta[i], alpha1[i], alpha2[i])
+    return samples
 
 
 def dagum_generator(

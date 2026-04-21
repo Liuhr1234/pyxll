@@ -38,11 +38,14 @@ def erf_generator_single(rng: np.random.Generator, params: List[float]) -> float
 
 
 def erf_generator_vectorized(
-    rng: np.random.Generator, params: List[float], n_samples: int
+    rng: np.random.Generator, params: List[Union[float, np.ndarray]], n_samples: int
 ) -> np.ndarray:
-    h = float(params[0])
-    _validate_params(h)
-    sigma = 1.0 / (_SQRT2 * h)
+    h = params[0]
+    if not isinstance(h, np.ndarray):
+        h = np.full(n_samples, float(h))
+    if np.any(h <= 0):
+        raise ValueError("Erf requires h > 0")
+    sigma = 1.0 / (np.sqrt(2.0) * h)
     return rng.normal(0.0, sigma, size=n_samples)
 
 

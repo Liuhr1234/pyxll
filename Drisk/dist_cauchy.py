@@ -36,11 +36,19 @@ def cauchy_generator_single(rng: np.random.Generator, params: List[float]) -> fl
 
 
 def cauchy_generator_vectorized(
-    rng: np.random.Generator, params: List[float], n_samples: int
+    rng: np.random.Generator, params: List[Union[float, np.ndarray]], n_samples: int
 ) -> np.ndarray:
-    gamma = float(params[0])
-    beta = float(params[1])
-    _validate_params(gamma, beta)
+    gamma = params[0]
+    beta = params[1]
+
+    if not isinstance(gamma, np.ndarray):
+        gamma = np.full(n_samples, float(gamma))
+    if not isinstance(beta, np.ndarray):
+        beta = np.full(n_samples, float(beta))
+
+    if np.any(beta <= 0):
+        raise ValueError("Cauchy requires beta > 0")
+
     return gamma + beta * rng.standard_cauchy(size=n_samples)
 
 

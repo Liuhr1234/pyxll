@@ -45,18 +45,45 @@ def doubletriang_generator_single(rng: np.random.Generator, params: List[float])
 
 
 def doubletriang_generator_vectorized(
-    rng: np.random.Generator, params: List[float], n_samples: int
+    rng: np.random.Generator, params: List[Union[float, np.ndarray]], n_samples: int
 ) -> np.ndarray:
-    min_val = float(params[0])
-    m_likely = float(params[1])
-    max_val = float(params[2])
-    lower_p = float(params[3])
-    _validate_params(min_val, m_likely, max_val, lower_p)
+    min_val = params[0]
+    m_likely = params[1]
+    max_val = params[2]
+    lower_p = params[3]
+
+    for i, arr in enumerate([min_val, m_likely, max_val, lower_p]):
+        if not isinstance(arr, np.ndarray):
+            arr = np.full(n_samples, float(arr))
+        else:
+            arr = arr.astype(float)
+        if i == 0:
+            min_arr = arr
+        elif i == 1:
+            m_arr = arr
+        elif i == 2:
+            max_arr = arr
+        else:
+            p_arr = arr
+
+    # 验证
+    if np.any((min_arr >= m_arr) | (m_arr >= max_arr)):
+        raise ValueError("DoubleTriang requires min < likely < max")
+    if np.any((p_arr < 0) | (p_arr > 1)):
+        raise ValueError("lower_p must be in [0,1]")
+
     u = rng.random(size=n_samples)
-    return np.array(
-        [doubletriang_ppf(float(q), min_val, m_likely, max_val, lower_p) for q in u],
-        dtype=float,
-    )
+    samples = np.empty(n_samples, dtype=float)
+    left_range = m_arr - min_arr
+    right_range = max_arr - m_arr
+    # 分两支计算
+    mask = u <= p_arr
+    # 左支
+    samples[mask] = min_arr[mask] + left_range[mask] * np.sqrt(u[mask] / p_arr[mask])
+    # 右支
+    mask_r = ~mask
+    samples[mask_r] = max_arr[mask_r] - right_range[mask_r] * np.sqrt((1 - u[mask_r]) / (1 - p_arr[mask_r]))
+    return samples
 
 
 def doubletriang_generator(

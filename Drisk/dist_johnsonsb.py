@@ -1,7 +1,7 @@
 """Johnson SB distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -58,16 +58,37 @@ def johnsonsb_generator_single(rng: np.random.Generator, params: List[float]) ->
 
 def johnsonsb_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    alpha1 = float(params[0])
-    alpha2 = float(params[1])
-    a = float(params[2])
-    b = float(params[3])
+    alpha1 = params[0]
+    alpha2 = params[1]
+    a = params[2]
+    b = params[3]
+
+    # 广播
+    for i, arr in enumerate([alpha1, alpha2, a, b]):
+        if not isinstance(arr, np.ndarray):
+            arr = np.full(n_samples, float(arr))
+        else:
+            arr = arr.astype(float)
+        if i == 0:
+            alpha1_arr = arr
+        elif i == 1:
+            alpha2_arr = arr
+        elif i == 2:
+            a_arr = arr
+        else:
+            b_arr = arr
+
+    if np.any((alpha2_arr <= 0) | (b_arr <= a_arr)):
+        raise ValueError("JohnsonSB requires alpha2>0, b>a")
+
     q = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    dist = _create_dist(alpha1, alpha2, a, b)
-    return np.asarray(dist.ppf(q), dtype=float)
+    # 使用 scipy.stats.johnsonsb.ppf 支持数组参数
+    from scipy.stats import johnsonsb
+    samples = johnsonsb.ppf(q, alpha1_arr, alpha2_arr, loc=a_arr, scale=b_arr - a_arr)
+    return samples
 
 
 class JohnsonSBDistribution(DistributionBase):

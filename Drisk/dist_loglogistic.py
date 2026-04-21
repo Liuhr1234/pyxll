@@ -1,7 +1,7 @@
 """Loglogistic distribution support for Drisk."""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scipy.integrate import quad
@@ -73,15 +73,30 @@ def loglogistic_generator_single(rng: np.random.Generator, params: List[float]) 
 
 def loglogistic_generator_vectorized(
     rng: np.random.Generator,
-    params: List[float],
+    params: List[Union[float, np.ndarray]],
     n_samples: int,
 ) -> np.ndarray:
-    gamma = float(params[0])
-    beta = float(params[1])
-    alpha = float(params[2])
-    dist = _create_dist(gamma, beta, alpha)
-    q = rng.uniform(_EPS, 1.0 - _EPS, size=n_samples)
-    return np.asarray(dist.ppf(q), dtype=float)
+    gamma = params[0]
+    beta = params[1]
+    alpha = params[2]
+
+    for i, arr in enumerate([gamma, beta, alpha]):
+        if not isinstance(arr, np.ndarray):
+            arr = np.full(n_samples, float(arr))
+        else:
+            arr = arr.astype(float)
+        if i == 0:
+            gamma_arr = arr
+        elif i == 1:
+            beta_arr = arr
+        else:
+            alpha_arr = arr
+
+    if np.any((beta_arr <= 0) | (alpha_arr <= 0)):
+        raise ValueError("Loglogistic requires beta>0, alpha>0")
+
+    from scipy.stats import fisk
+    return fisk.rvs(c=alpha_arr, loc=gamma_arr, scale=beta_arr, size=n_samples, random_state=rng)
 
 
 class LoglogisticDistribution(DistributionBase):
