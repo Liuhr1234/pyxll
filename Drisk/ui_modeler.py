@@ -1,4 +1,5 @@
-﻿# ui_modeler.py
+# ui_modeler.py
+# -*- coding: utf-8 -*-
 """
 本模块提供核心的 UI 建模器服务 (Pro修复版：完美对齐 ui_results 布局与双轴边距)。
 主要功能与历史修复记录：
@@ -73,7 +74,7 @@ from ui_label_settings import (
     get_axis_display_unit_override,
     get_axis_numeric_flags,
 )
-
+from constants import DISTRIBUTION_CARD_TOOLTIPS
 
 # =======================================================
 # 1. 模块声明与全局配置 (Global Config & Registry)
@@ -113,7 +114,7 @@ _DISPLAY_NAME_OVERRIDES = {
     "DriskGeomet": {"zh": "几何分布", "en": "Geomet"},
     "DriskHypergeo": {"zh": "超几何分布", "en": "Hypergeo"},
     "DriskIntuniform": {"zh": "整数均匀分布", "en": "IntUniform"},
-    "DriskNegbin": {"zh": "负二项分布", "en": "NegBin"},
+    "DriskNegbin": {"zh": "负二项分布", "en": "Negbin"},
     "DriskBernoulli": {"zh": "伯努利分布", "en": "Bernoulli"},
     "DriskTriang": {"zh": "三角分布", "en": "Triang"},
     "DriskBinomial": {"zh": "二项分布", "en": "Binomial"},
@@ -153,12 +154,13 @@ _RECENT_FILE_NAME = "recent_distributions.json" # 存储文件名
 _DIST_FAMILY_RECENT = "recent"
 _DIST_FAMILY_CONTINUOUS = "continuous"
 _DIST_FAMILY_DISCRETE = "discrete"
-
+_DIST_FAMILY_SPECIAL = "special"
+_SPECIAL_DISTRIBUTION_KEYS = {"Compound", "Splice"}
 # --- 分布图标映射 (Icon Mapping) ---
 _DISTRIBUTION_POPUP_ICON_MAP = {
     "Bernoulli": "Bernoulli_icon",
     "Binomial": "Binomial_icon",
-    "Discrete": "Discrete_icon",
+    "Discrete": "Discrete_icon", 
     "DUniform": "DUniform_icon",
     "Geomet": "Geomet_icon",
     "Hypergeo": "HyperGeo_icon",
@@ -170,7 +172,7 @@ _DISTRIBUTION_POPUP_ICON_MAP = {
     "BetaSubj": "dist_betasubj",
     "Burr12": "Burr12_icon",
     "Cauchy": "Cauchy_icon",
-    "ChiSq": "ChiSq_icon",
+    "ChiSq": "ChiSq_icon", 
     "Cumul": "Cumul_icon",
     "Dagum": "Dagum_icon",
     "DoubleTriang": "DoubleTriang_icon",
@@ -209,6 +211,9 @@ _DISTRIBUTION_POPUP_ICON_MAP = {
     "Trigen": "Trigen_icon",
     "Uniform": "Uniform_icon",
     "Weibull": "Weibull_icon",
+    "Compound": "Compound_icon",
+    "Splice": "Splice_icon",
+
 }
 
 
@@ -387,19 +392,46 @@ def _distribution_family_to_is_discrete(family_key: str) -> bool:
 
 
 def _get_distribution_keys_by_family(family_key: str) -> list[str]:
-    """按族群（最近/连续/离散）获取分布列表。"""
+    """按族群（最近/连续/离散/特殊）获取分布列表。"""
     family = str(family_key or "").strip().lower()
     if family == _DIST_FAMILY_RECENT:
         return _get_recent_distribution_keys()
-    return _get_distribution_keys_by_type(_distribution_family_to_is_discrete(family))
+    if family == _DIST_FAMILY_SPECIAL:
+        return [k for k in sorted(_SPECIAL_DISTRIBUTION_KEYS) if k in DIST_REGISTRY]
+
+    keys = _get_distribution_keys_by_type(_distribution_family_to_is_discrete(family))
+    return [k for k in keys if k not in _SPECIAL_DISTRIBUTION_KEYS]
+
 
 
 def _format_distribution_choice_label(dist_key: str) -> str:
     """格式化分布下拉框中的显示文本，去掉括号内部分让界面更整洁。"""
     cfg = DIST_REGISTRY.get(dist_key, {})
-    title = str(cfg.get("ui_name", dist_key)).strip()
+    alias = str(cfg.get("ui_alias", "")).strip()
+    if alias:
+        return alias
+    title = str(cfg.get("ui_name",dist_key)).strip()
     label = re.sub(r"\s*\([^)]*\)\s*$", "", title).strip()
     return label or title or str(dist_key)
+def _build_distribution_card_tooltip(dist_key: str) -> str:
+    """构建分布卡片悬浮提示。"""
+    override = DISTRIBUTION_CARD_TOOLTIPS.get(str(dist_key or "").strip())
+    if override:
+       return f"{override.get('summary', '')}\n{override.get('detail', '')}".strip()
+
+
+    cfg = DIST_REGISTRY.get(dist_key, {})
+    name = str(cfg.get("ui_alias", "") or cfg.get("ui_name", dist_key)).strip()
+    descriptor = str(cfg.get("ui_descriptor", "")).strip()
+    description = str(cfg.get("description", "")).strip()
+
+    first_line = name
+    if descriptor:
+        first_line = f"{name} - {descriptor}"
+
+    if description:
+        return f"{first_line}\n{description}"
+    return first_line
 
 
 def _resolve_distribution_popup_icon_path(dist_key: str) -> str:
@@ -440,6 +472,85 @@ def _populate_distribution_combo_by_family(combo: QComboBox, family_key: str, se
         target_index = 0 if combo.count() > 0 else -1
     if target_index >= 0:
         combo.setCurrentIndex(target_index)
+
+
+class _ElidedTextLabel(QLabel):
+    """单行省略号标签，用于分布选择卡片。"""
+
+    def __init__(self, text: str = "", parent=None):
+        super().__init__(parent)
+        self._full_text = ""
+        self.set_full_text(text)
+
+    def set_full_text(self, text: str) -> None:
+        self._full_text = str(text or "")
+        self._refresh_text()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._refresh_text()
+
+    def _refresh_text(self) -> None:
+        metrics = self.fontMetrics()
+        available_width = max(8, self.contentsRect().width())
+        elided = metrics.elidedText(self._full_text, Qt.ElideRight, available_width)
+        super().setText(elided)
+
+
+class _DistributionCardGrid(QWidget):
+    """自适应卡片网格：根据可用宽度自动调整列数。"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._buttons: list[QPushButton] = []
+        self._last_cols = 0
+        self._card_width = 110
+        self._grid = QGridLayout(self)
+        self._grid.setContentsMargins(8, 8, 8, 8)
+        self._grid.setHorizontalSpacing(14)
+        self._grid.setVerticalSpacing(14)
+        self._grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+
+    def set_buttons(self, buttons: list[QPushButton]) -> None:
+        self._buttons = list(buttons or [])
+        self._last_cols = 0
+        self._rebuild_grid(force=True)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._rebuild_grid()
+
+    def _calculate_cols(self) -> int:
+        margins = self._grid.contentsMargins()
+        spacing = self._grid.horizontalSpacing()
+        usable_width = max(
+            0,
+            self.contentsRect().width() - margins.left() - margins.right(),
+        )
+        slot_width = self._card_width + max(0, spacing)
+        return max(1, usable_width // max(1, slot_width))
+
+    def _clear_grid(self) -> None:
+        while self._grid.count():
+            item = self._grid.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                self._grid.removeWidget(widget)
+
+    def _rebuild_grid(self, force: bool = False) -> None:
+        cols = self._calculate_cols()
+        if not force and cols == self._last_cols:
+            return
+
+        self._last_cols = cols
+        self._clear_grid()
+
+        for idx, button in enumerate(self._buttons):
+            row = idx // cols
+            col = idx % cols
+            self._grid.addWidget(button, row, col)
+
+        self._grid.setRowStretch((len(self._buttons) + cols - 1) // cols, 1)
 
 def _initialize_ui_registry():
     """
@@ -561,7 +672,10 @@ class DistributionSelector(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Drisk - 选择分布模型")
         set_drisk_icon(self, "simu_icon.svg")
-        self.resize(680, 420)
+        self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
+        self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
+        self.setMinimumSize(760, 520)
+        self.resize(980, 640)
         # 应用统一样式：白底黑字、微软雅黑以及全局滚动条样式
         self.setStyleSheet(
             "background-color: white; font-family: 'Microsoft YaHei';"
@@ -614,6 +728,7 @@ class DistributionSelector(QDialog):
         self.nav_list.addItem(QListWidgetItem("连续分布"))
         self.nav_list.addItem(QListWidgetItem("离散分布"))
         body_layout.addWidget(self.nav_list)
+        self.nav_list.addItem(QListWidgetItem("特殊分布"))
 
         # 右侧堆叠卡片区 (页面容器)
         self.page_stack = QStackedWidget()
@@ -622,9 +737,11 @@ class DistributionSelector(QDialog):
         recent_keys = _get_distribution_keys_by_family(_DIST_FAMILY_RECENT)
         cont_keys = _get_distribution_keys_by_family(_DIST_FAMILY_CONTINUOUS)
         disc_keys = _get_distribution_keys_by_family(_DIST_FAMILY_DISCRETE)
+        special_keys = _get_distribution_keys_by_family(_DIST_FAMILY_SPECIAL)
         self.page_stack.addWidget(self._build_section_page(recent_keys, empty_hint="暂无最近使用记录（最近30天）"))
         self.page_stack.addWidget(self._build_section_page(cont_keys))
         self.page_stack.addWidget(self._build_section_page(disc_keys))
+        self.page_stack.addWidget(self._build_section_page(special_keys, empty_hint="暂无特殊分布"))
 
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
         self.nav_list.setCurrentRow(0)
@@ -652,18 +769,9 @@ class DistributionSelector(QDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        content = QWidget()
-        grid = QGridLayout(content)
-        grid.setContentsMargins(4, 4, 4, 4)
-        grid.setHorizontalSpacing(8)
-        grid.setVerticalSpacing(8)
-
-        cols = 4
-        for idx, key in enumerate(dist_keys):
-            button = self._create_dist_card(key)
-            grid.addWidget(button, idx // cols, idx % cols)
-
-        grid.setRowStretch((len(dist_keys) + cols - 1) // cols, 1)
+        content = _DistributionCardGrid()
+        buttons = [self._create_dist_card(key) for key in dist_keys]
+        content.set_buttons(buttons)
         scroll.setWidget(content)
         outer_layout.addWidget(scroll, 1)
         return page
@@ -674,8 +782,8 @@ class DistributionSelector(QDialog):
         icon_path = _resolve_distribution_popup_icon_path(key)
 
         btn = QPushButton()
-        btn.setFixedSize(120, 68)
-        btn.setToolTip(card_text)
+        btn.setFixedSize(110, 120)
+        btn.setToolTip(_build_distribution_card_tooltip(key))
         btn.setStyleSheet(
             """
             QPushButton {
@@ -696,27 +804,27 @@ class DistributionSelector(QDialog):
             """
         )
 
-        row = QHBoxLayout(btn)
-        row.setContentsMargins(8, 6, 8, 6)
-        row.setSpacing(8)
+        column = QVBoxLayout(btn)
+        column.setContentsMargins(8, 8, 8, 8)
+        column.setSpacing(8)
 
         icon_label = QLabel()
-        icon_label.setFixedSize(24, 24)
+        icon_label.setFixedSize(64, 64)
         icon_label.setAlignment(Qt.AlignCenter)
         if icon_path:
             pixmap = QPixmap(icon_path)
             if not pixmap.isNull():
-                icon_label.setPixmap(pixmap.scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                icon_label.setPixmap(pixmap.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         icon_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        row.addWidget(icon_label, 0, Qt.AlignVCenter)
+        column.addWidget(icon_label, 0, Qt.AlignHCenter | Qt.AlignBottom)
 
-        text_label = QLabel(card_text)
-        text_label.setWordWrap(True)
-        text_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        text_label.setFixedWidth(52)
+        text_label = _ElidedTextLabel(card_text)
+        text_label.setFixedWidth(80)
+        text_label.setFixedHeight(18)
+        text_label.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
         text_label.setStyleSheet("background: transparent;")
         text_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        row.addWidget(text_label, 1, Qt.AlignVCenter)
+        column.addWidget(text_label, 1, Qt.AlignHCenter | Qt.AlignTop)
 
         btn.clicked.connect(lambda checked=False, dist_key=key: self.select_dist(dist_key))
         return btn
@@ -1043,6 +1151,7 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
         self.combo_dist_family.addItem("最近使用", _DIST_FAMILY_RECENT)
         self.combo_dist_family.addItem("连续分布", _DIST_FAMILY_CONTINUOUS)
         self.combo_dist_family.addItem("离散分布", _DIST_FAMILY_DISCRETE)
+        self.combo_dist_family.addItem("特殊分布", _DIST_FAMILY_SPECIAL)
         gl1.addWidget(self.combo_dist_family)
 
         self.combo = QComboBox()
@@ -1385,16 +1494,20 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
         return _DIST_FAMILY_CONTINUOUS
 
     def _sync_dist_family_with_key(self, dist_key: str) -> None:
-        cfg = get_dist_config(dist_key) or {}
-        target_family = _DIST_FAMILY_DISCRETE if bool(cfg.get("is_discrete", False)) else _DIST_FAMILY_CONTINUOUS
-        if hasattr(self, "combo_dist_family") and self.combo_dist_family is not None:
+       cfg = get_dist_config(dist_key) or {}
+       if dist_key in _SPECIAL_DISTRIBUTION_KEYS:
+           target_family = _DIST_FAMILY_SPECIAL
+       else:
+           target_family = _DIST_FAMILY_DISCRETE if bool(cfg.get("is_discrete", False)) else _DIST_FAMILY_CONTINUOUS
+
+       if hasattr(self, "combo_dist_family") and self.combo_dist_family is not None:
             idx = self.combo_dist_family.findData(target_family)
             if idx >= 0 and self.combo_dist_family.currentIndex() != idx:
                 # 阻塞信号，避免触发无意义的模型重绘循环
                 self.combo_dist_family.blockSignals(True)
                 self.combo_dist_family.setCurrentIndex(idx)
                 self.combo_dist_family.blockSignals(False)
-        if hasattr(self, "combo") and self.combo is not None:
+       if hasattr(self, "combo") and self.combo is not None:
             self.combo.blockSignals(True)
             try:
                 _populate_distribution_combo_by_family(self.combo, target_family, dist_key)
@@ -1405,14 +1518,18 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
         family_key = self._current_dist_family_key()
         selected_key = ""
         if self.dist_type in DIST_REGISTRY:
-            if family_key == _DIST_FAMILY_RECENT:
-                same_family = self.dist_type in set(_get_distribution_keys_by_family(_DIST_FAMILY_RECENT))
-            else:
-                same_family = (
-                    bool(DIST_REGISTRY[self.dist_type].get("is_discrete", False))
-                    == _distribution_family_to_is_discrete(family_key)
-                )
-            if same_family:
+           if family_key == _DIST_FAMILY_RECENT:
+              same_family = self.dist_type in set(_get_distribution_keys_by_family(_DIST_FAMILY_RECENT))
+           elif family_key == _DIST_FAMILY_SPECIAL:
+              same_family = self.dist_type in set(_get_distribution_keys_by_family(_DIST_FAMILY_SPECIAL))
+           else:
+              same_family = (
+                self.dist_type not in _SPECIAL_DISTRIBUTION_KEYS
+                and bool(DIST_REGISTRY[self.dist_type].get("is_discrete", False))
+                == _distribution_family_to_is_discrete(family_key)
+    )
+
+           if same_family:
                 selected_key = self.dist_type
 
         self.combo.blockSignals(True)

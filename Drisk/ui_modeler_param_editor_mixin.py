@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from constants import DEFAULT_RNG_TYPE, DEFAULT_SEED, RNG_TYPE_NAMES
+from constants import DEFAULT_RNG_TYPE, DEFAULT_SEED, RNG_TYPE_NAMES, DISTRIBUTION_PARAM_TOOLTIPS
 from ui_shared import AutoSelectLineEdit, apply_excel_select_button_icon
 
 
@@ -65,6 +65,15 @@ class DistributionBuilderParamEditorMixin:
         # 2. 从当前分布配置中提取所需的参数元数据列表
         params_def = self.config.get('params', [])
         for i, (key, label, default) in enumerate(params_def):
+            param_tooltip = ""
+            try:
+                tooltip_map = DISTRIBUTION_PARAM_TOOLTIPS.get(str(getattr(self, "dist_type", "") or ""), {})
+                param_tooltip = str(
+                    tooltip_map.get(str(key), "") or tooltip_map.get(str(label), "")
+                ).strip()
+            except Exception:
+                param_tooltip = ""
+
             val = str(default)
             # 尝试回填初始传入的参数值（支持字典通过 key 匹配，或列表通过索引匹配）
             if isinstance(self.initial_params, dict) and key in self.initial_params:
@@ -75,6 +84,8 @@ class DistributionBuilderParamEditorMixin:
             # 实例化自定义的输入框组件 
             # (注：输入框的尺寸限制和全选逻辑封装在 AutoSelectLineEdit 类内部)
             e = AutoSelectLineEdit(val)
+            if param_tooltip:
+                e.setToolTip(param_tooltip)
             e.editingFinished.connect(self.on_param_changed)
 
             # 3. 实例化“靶点”按钮，用于选取 Excel 单元格地址
@@ -109,7 +120,10 @@ class DistributionBuilderParamEditorMixin:
             h_layout.addWidget(btn)
 
             # 挂载到主表单布局中，并记录引用
-            self.form.addRow(label, h_layout)
+            label_widget = QLabel(str(label))
+            if param_tooltip:
+                label_widget.setToolTip(param_tooltip)
+            self.form.addRow(label_widget, h_layout)
             self.inputs[key] = e
 
         self._is_building_inputs = False
