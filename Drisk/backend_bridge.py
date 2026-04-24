@@ -1,4 +1,5 @@
-﻿# backend_bridge.py
+# backend_bridge.py
+# -*- coding: utf-8 -*-
 """
 本模块提供不可变的 Drisk 后端（PyXLL/Excel 模拟核心）与可变的 PySide6/Plotly UI 层之间的桥接服务。
 
@@ -1525,6 +1526,13 @@ def get_backend_distribution(func_name: str, params: Sequence[Any], attrs: Optio
         elif fn_core == "DISCRETE":
             from dist_discrete import DiscreteDistribution
             dist_class = DiscreteDistribution
+        elif fn_core == "COMPOUND":
+            from dist_compound import CompoundDistribution
+            dist_class = CompoundDistribution
+        elif fn_core == "SPLICE":
+            from dist_splice import SpliceDistribution
+            dist_class = SpliceDistribution
+
         elif fn_core == "FRECHET":
             from dist_frechet import FrechetDistribution
             dist_class = FrechetDistribution
@@ -1642,8 +1650,57 @@ def get_backend_distribution(func_name: str, params: Sequence[Any], attrs: Optio
     list_like_params = list(params) if isinstance(params, (list, tuple, np.ndarray)) else [params]
     cleaned_params: List[Any] = []
 
-    # 针对底层数据表驱动型的高级分布群，放开浮点数强转限制，原封不动透传表格引用矩阵
-    if fn_core in {"DISCRETE", "CUMUL", "DUNIFORM", "GENERAL", "HISTOGRM", "HISTGRAM"}:
+    def _resolve_nested_formula_param(value: Any) -> Any:
+        text = str(value or "").strip()
+        if not text:
+            return text
+
+        if text.startswith("="):
+            return text
+
+        if re.match(r"^@?\s*Drisk[A-Za-z0-9_]*\s*\(.*\)\s*$", text, re.IGNORECASE):
+            return text
+
+        cell_ref_pattern = r"^(?:'[^']+'!|[A-Za-z_][A-Za-z0-9_ ]*!)?\$?[A-Za-z]{1,3}\$?\d+$"
+        if not re.match(cell_ref_pattern, text):
+            return text
+
+        try:
+            from pyxll import xl_app
+            app = xl_app()
+
+            if "!" in text:
+                sheet_name, addr = text.split("!", 1)
+                sheet_name = sheet_name.strip().replace("'", "").replace('"', "")
+                rng = app.ActiveWorkbook.Worksheets(sheet_name).Range(addr)
+            else:
+                rng = app.ActiveSheet.Range(text)
+
+            formula = rng.Formula
+            if isinstance(formula, str) and formula.strip().startswith("="):
+                return formula.strip()
+
+            value_text = rng.Value
+            if isinstance(value_text, str) and value_text.strip():
+                return value_text.strip()
+        except Exception:
+            pass
+
+        return text
+
+    if fn_core in {"COMPOUND", "SPLICE"}:
+        cleaned_params = list_like_params[:]
+
+        if fn_core == "COMPOUND" and len(cleaned_params) >= 2:
+            cleaned_params[0] = _resolve_nested_formula_param(cleaned_params[0])
+            cleaned_params[1] = _resolve_nested_formula_param(cleaned_params[1])
+
+        if fn_core == "SPLICE" and len(cleaned_params) >= 2:
+            cleaned_params[0] = _resolve_nested_formula_param(cleaned_params[0])
+            cleaned_params[1] = _resolve_nested_formula_param(cleaned_params[1])
+
+    elif fn_core in {"DISCRETE", "CUMUL", "DUNIFORM", "GENERAL", "HISTOGRM", "HISTGRAM"}:
+
         cleaned_params = list_like_params
         
         # 定义空负载防呆校验工具

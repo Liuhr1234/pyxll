@@ -1,4 +1,5 @@
 # ui_modeler_param_validation_mixin.py
+# -*- coding: utf-8 -*-
 """
 本模块为分布构建器（DistributionBuilderDialog）提供参数解析与验证的辅助功能（Mixin）。
 
@@ -252,7 +253,13 @@ class DistributionBuilderParamValidationMixin:
         if dist_key in ("Cumul", "DriskCumul"):
             return ("X-Table", "P-Table", "自定义分布")
         if dist_key in ("Discrete", "DriskDiscrete"):
-            return ("x_vals", "p_vals", "自定义分布")
+            return ("X-Table", "P-Table", "自定义分布")
+        if dist_key in ("General", "DriskGeneral"):
+            return ("X-Table", "P-Table", "自定义分布")
+        if dist_key in ("Histogrm", "DriskHistogrm"):
+            return (None, "P-Table", "直方图分布")
+        if dist_key in ("DUniform", "DriskDUniform"):
+            return ("X-Table", None, "离散均匀分布")
         return None
 
     def _is_list_param_selector(self, param_key):
@@ -261,7 +268,8 @@ class DistributionBuilderParamValidationMixin:
         if not cfg:
             return False
         x_key, p_key, _name = cfg
-        return param_key in (x_key, p_key)
+        return param_key in tuple(k for k in (x_key, p_key) if k)
+
 
     def _to_numeric_list_for_validation(self, value):
         """递归展平混合输入，将任意合法输入（引用、数组、字符串）转化为用于逻辑校验的一维浮点数列表。"""
@@ -482,6 +490,57 @@ class DistributionBuilderParamValidationMixin:
                 continue
 
             rule = rules.get(key, None)
+            if rule and rule.get("type") == "formula":
+                formula_raw = raw[1:].strip() if raw.startswith("=") else raw
+                cell_ref_pattern = r"(?:'[^']+'!|[A-Za-z_][A-Za-z0-9_ ]*!)?\$?[A-Za-z]{1,3}\$?\d+"
+                dist_formula_pattern = r"@?\s*Drisk[A-Za-z0-9_]*\s*\(.+\)\s*"
+
+                if re.fullmatch(cell_ref_pattern, formula_raw) or re.fullmatch(dist_formula_pattern, formula_raw, re.IGNORECASE):
+                    vals[key] = formula_raw
+                    continue
+
+                err[key] = "\u5fc5\u987b\u662f\u5206\u5e03\u516c\u5f0f\u6216\u5355\u5143\u683c\u5f15\u7528"
+                continue
+
+            if rule and rule.get("type") == "optional_nonneg":
+                is_inf_text = raw.lower() in ("inf", "infinity") or raw == "\u221e"
+                if raw == "" or (rule.get("allow_inf") and is_inf_text):
+                    vals[key] = raw
+                    continue
+
+                try:
+                    resolved = self._resolve_param_value(raw)
+                    if isinstance(resolved, (list, tuple)):
+                        resolved = resolved[0][0]
+                    v = float(resolved)
+                except Exception:
+                    err[key] = "\u53c2\u6570\u89e3\u6790\u5931\u8d25"
+                    continue
+
+                if v < 0:
+                    err[key] = "\u5fc5\u987b >= 0"
+                    continue
+
+                vals[key] = v
+                continue
+
+            if rule and rule.get("type") == "finite":
+                try:
+                    resolved = self._resolve_param_value(raw)
+                    if isinstance(resolved, (list, tuple)):
+                        resolved = resolved[0][0]
+                    v = float(resolved)
+                except Exception:
+                    err[key] = "\u53c2\u6570\u89e3\u6790\u5931\u8d25"
+                    continue
+
+                if not np.isfinite(v):
+                    err[key] = "\u5fc5\u987b\u662f\u6709\u9650\u6570\u503c"
+                    continue
+
+                vals[key] = v
+                continue
+
             try:
                 # 整数类型校验
                 if rule and rule.get("type") == "int":
@@ -547,9 +606,25 @@ class DistributionBuilderParamValidationMixin:
 
         # 交叉参数校验：如均匀分布的上下限
         if "__cross__" in rules and rules["__cross__"] == "uniform_min_lt_max":
-            if "min" in vals and "max" in vals:
-                if vals["min"] >= vals["max"]:
-                    err["max"] = "必须大于 min"
+            params_def = self.config.get("params", [])
+            if len(params_def) >= 2:
+                min_key = params_def[0][0]
+                max_key = params_def[1][0]
+                if min_key in vals and max_key in vals:
+                    if vals[min_key] >= vals[max_key]:
+                        err[max_key] = "必须大于最小值"
+        if "__cross__" in rules and rules["__cross__"] == "hypergeo_bounds":
+            params_def = self.config.get("params", [])
+            if len(params_def) >= 3:
+                n_key = params_def[0][0]
+                d_key = params_def[1][0]
+                m_key = params_def[2][0]
+                if n_key in vals and m_key in vals and vals[n_key] > vals[m_key]:
+                    err[n_key] = "\u5fc5\u987b\u5c0f\u4e8e\u7b49\u4e8e M"
+                if d_key in vals and m_key in vals and vals[d_key] > vals[m_key]:
+                    err[d_key] = "\u5fc5\u987b\u5c0f\u4e8e\u7b49\u4e8e M"
+
+
 
         # 检查数组长度一致性
         try:

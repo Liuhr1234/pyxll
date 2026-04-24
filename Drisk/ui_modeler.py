@@ -624,20 +624,22 @@ def find_first_distribution_in_formula(formula):
             if k:
                 params = res.get("dist_params", [])
                 raw_args = []
-                # 过滤掉非法的空参数以及可能的嵌套分布名
                 for arg in (res.get("args_list", []) or []):
                     text = str(arg).strip()
                     if not text:
                         continue
-                    if re.match(r"^@?\s*Drisk[A-Za-z0-9_]*\s*\(", text, re.IGNORECASE):
-                        continue
+
+                    if k not in ("Compound", "Splice"):
+                        if re.match(r"^@?\s*Drisk[A-Za-z0-9_]*\s*\(", text, re.IGNORECASE):
+                            continue
+
                     raw_args.append(text)
 
-                # 对于特殊的 Cumul 表分布，参数直接继承 raw_args
-                if k == "Cumul" and raw_args:
+                if k in ("Cumul", "Discrete", "DUniform", "General", "Histogrm", "Compound", "Splice") and raw_args:
                     params = raw_args
                 elif (not params) and raw_args:
                     params = raw_args
+
                 return k, params
     except Exception as e:
         print(f"[Drisk][ui_modeler] backend_bridge 解析出错，退回到正则: {e}")
@@ -881,25 +883,81 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
         self.chart_title_label.setStyleSheet("color: #333333; margin: 0px; padding: 0px;")
 
         # [参数合法性规则字典]：用于防呆和输入框校验变红
+        def _rules_by_position(dist_key, indexed_rules, cross=None):
+           cfg = get_dist_config(dist_key) or {}
+           params = cfg.get("params", [])
+           rules = {}
+           for idx, rule in indexed_rules.items():
+              if idx < len(params):
+                  rules[params[idx][0]] = rule
+           if cross:
+               rules["__cross__"] = cross
+           return rules
+
         _PARAM_RULES = {
-            "Normal": {"std": {"type": "pos", "min": 0.0, "exclusive_min": True}},
-            "Uniform": {"min": {"type": "float"}, "max": {"type": "float"}, "__cross__": "uniform_min_lt_max"},
-            "Gamma": {"shape": {"type": "pos", "min": 0.0, "exclusive_min": True},
-                      "scale": {"type": "pos", "min": 0.0, "exclusive_min": True}},
-            "Poisson": {"lam": {"type": "pos", "min": 0.0, "exclusive_min": True}},
-            "Beta": {"a": {"type": "pos", "min": 0.0, "exclusive_min": True},
-                     "b": {"type": "pos", "min": 0.0, "exclusive_min": True}},
-            "ChiSq": {"df": {"type": "pos", "min": 0.0, "exclusive_min": True}},
-            "F": {"dfn": {"type": "pos", "min": 0.0, "exclusive_min": True},
-                  "dfd": {"type": "pos", "min": 0.0, "exclusive_min": True}},
-            "T": {"df": {"type": "pos", "min": 0.0, "exclusive_min": True}},
-            "Expon": {"lam": {"type": "pos", "min": 0.0, "exclusive_min": True}},
-            "Negbin": {
-                # [PROTECTED-CHANGE][Negbin] 将UI验证规则与广义负二项对齐: s>0 且 0<p<1。
-                "s": {"type": "pos", "min": 0.0, "exclusive_min": True},
-                "p": {"type": "prob", "min": 0.0, "max": 1.0, "exclusive_min": True, "exclusive_max": True},
-            },
-        }
+            "Normal": _rules_by_position("Normal", {
+               1: {"type": "pos", "min": 0.0, "exclusive_min": True},
+    }),
+            "Uniform": _rules_by_position("Uniform", {}, "uniform_min_lt_max"),
+            "Gamma": _rules_by_position("Gamma", {
+                0: {"type": "pos", "min": 0.0, "exclusive_min": True},
+                1: {"type": "pos", "min": 0.0, "exclusive_min": True},
+    }),
+            "Poisson": _rules_by_position("Poisson", {
+                0: {"type": "pos", "min": 0.0, "exclusive_min": True},
+    }),
+            "Bernoulli": _rules_by_position("Bernoulli", {
+                0: {"type": "prob", "min": 0.0, "max": 1.0, "exclusive_min": True, "exclusive_max": True},
+    }),
+            "Binomial": _rules_by_position("Binomial", {
+                0: {"type": "int", "min": 1},
+                1: {"type": "prob", "min": 0.0, "max": 1.0, "exclusive_min": True, "exclusive_max": True},
+    }),
+            "Geomet": _rules_by_position("Geomet", {
+                0: {"type": "prob", "min": 0.0, "max": 1.0, "exclusive_min": True},
+    }),
+            "Hypergeo": _rules_by_position("Hypergeo", {
+                0: {"type": "int", "min": 1},
+                1: {"type": "int", "min": 1},
+                2: {"type": "int", "min": 1},
+    }, "hypergeo_bounds"),
+
+            "Beta": _rules_by_position("Beta", {
+                0: {"type": "pos", "min": 0.0, "exclusive_min": True},
+                1: {"type": "pos", "min": 0.0, "exclusive_min": True},
+               }),
+            "ChiSq": _rules_by_position("ChiSq", {
+                0: {"type": "pos", "min": 0.0, "exclusive_min": True},
+                  }),
+            "F": _rules_by_position("F", {
+                0: {"type": "pos", "min": 0.0, "exclusive_min": True},
+                1: {"type": "pos", "min": 0.0, "exclusive_min": True},
+    }),
+            "Student": _rules_by_position("Student", {
+                0: {"type": "pos", "min": 0.0, "exclusive_min": True},
+    }),
+            "Expon": _rules_by_position("Expon", {
+                0: {"type": "pos", "min": 0.0, "exclusive_min": True},
+    }),
+            "Negbin": _rules_by_position("Negbin", {
+                0: {"type": "pos", "min": 0.0, "exclusive_min": True},
+                1: {"type": "prob", "min": 0.0, "max": 1.0, "exclusive_min": True, "exclusive_max": True},
+    }),
+            "Compound": _rules_by_position("Compound", {
+                0: {"type": "formula"},
+                1: {"type": "formula"},
+                2: {"type": "optional_nonneg"},
+                3: {"type": "optional_nonneg", "allow_inf": True},
+    }),
+            "Splice": _rules_by_position("Splice", {
+                0: {"type": "formula"},
+                1: {"type": "formula"},
+                2: {"type": "finite"},
+    }),
+}
+
+
+
         self._PARAM_RULES = _PARAM_RULES
 
         self.cell_address = cell_address or ""

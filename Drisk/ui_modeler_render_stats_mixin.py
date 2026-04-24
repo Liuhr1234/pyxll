@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ui_modeler_render_stats_mixin.py
 """
 本模块为 DistributionBuilderDialog 提供“统计表 + 图表预览”两组能力的混合类实现，
@@ -1091,6 +1092,173 @@ class DistributionBuilderRenderStatsMixin:
     # =======================================================
     # 4. 预览路由与分发中心
     # =======================================================
+    def _is_compound_splice_preview(self) -> bool:
+        dist_key = str(getattr(self, "dist_type", "") or "").lower()
+        func_name = str(getattr(self, "_dist_func_name", "") or "").lower()
+        cfg_func = ""
+        try:
+            cfg_func = str((getattr(self, "config", {}) or {}).get("func_name", "") or "").lower()
+        except Exception:
+            cfg_func = ""
+
+        text = " ".join([dist_key, func_name, cfg_func])
+        return "compound" in text or "splice" in text
+
+
+    def _get_compound_splice_preview_samples(self, n: int = 3000) -> np.ndarray:
+        dist = getattr(self, "dist_obj", None)
+        if dist is None:
+            return np.array([], dtype=float)
+
+        rng = np.random.default_rng(20260422)
+        qs = rng.uniform(1e-6, 1.0 - 1e-6, int(n))
+
+        samples = []
+        for q in qs:
+            try:
+                samples.append(float(self._safe_ppf_scalar(dist, float(q))))
+            except Exception:
+                pass
+
+        arr = np.asarray(samples, dtype=float)
+        arr = arr[np.isfinite(arr)]
+        return arr
+
+    def _render_channel_compound_splice_simulation(self, cmd: str = "pdf"):
+        try:
+            if not getattr(self, "_plot_host", None):
+                return
+
+            samples = self._get_compound_splice_preview_samples(3000)
+            if samples.size <= 0:
+                return
+
+            x_min = float(np.percentile(samples, 1.0))
+            x_max = float(np.percentile(samples, 99.0))
+
+            if not math.isfinite(x_min) or not math.isfinite(x_max) or x_max <= x_min:
+                x_min = float(np.min(samples))
+                x_max = float(np.max(samples))
+
+            if not math.isfinite(x_min) or not math.isfinite(x_max) or x_max <= x_min:
+                x_min, x_max = 0.0, 1.0
+
+            n_bins = 50
+            bin_width = (x_max - x_min) / float(n_bins)
+            if not math.isfinite(bin_width) or bin_width <= 0:
+                bin_width = 1.0
+
+            plot_samples = samples[(samples >= x_min) & (samples <= x_max)]
+            if plot_samples.size <= 0:
+                plot_samples = samples
+
+            is_rel_freq = str(cmd or "").lower() == "rel_freq"
+            show_cdf = str(cmd or "").lower().endswith("_cdf")
+
+            histnorm = "percent" if is_rel_freq else "probability density"
+            y_title = "\u76f8\u5bf9\u9891\u7387\uff08%\uff09" if is_rel_freq else "\u5bc6\u5ea6"
+
+            counts, _edges = np.histogram(plot_samples, bins=n_bins, range=(x_min, x_max))
+            if is_rel_freq:
+                raw_y_max = float(np.max(counts) / max(float(plot_samples.size), 1.0) * 100.0)
+            else:
+                raw_y_max = float(np.max(counts) / max(float(plot_samples.size) * bin_width, 1.0))
+
+            if not math.isfinite(raw_y_max) or raw_y_max <= 1e-12:
+                raw_y_max = 1.0
+
+            y_dtick = float(DriskMath.calc_smart_step(raw_y_max))
+            if not math.isfinite(y_dtick) or y_dtick <= 0:
+                y_dtick = raw_y_max / 5.0 if raw_y_max > 0 else 1.0
+
+            y_axis_max = float(math.ceil((raw_y_max + 0.01 * y_dtick) / y_dtick) * y_dtick)
+
+            x_dtick = float(DriskMath.calc_smart_step(x_max - x_min))
+            if not math.isfinite(x_dtick) or x_dtick <= 0:
+                x_dtick = 1.0
+
+            self.view_min = float(x_min)
+            self.view_max = float(x_max)
+            self.x_dtick = float(x_dtick)
+
+            axis_style = build_plotly_axis_style(
+                x_range=(x_min, x_max),
+                y_range=(0.0, y_axis_max),
+                x_dtick=float(x_dtick),
+                y_dtick=float(y_dtick),
+                x_title=DriskChartFactory.VALUE_AXIS_TITLE,
+                x_unit=DriskChartFactory.VALUE_AXIS_UNIT,
+                y_title=y_title,
+                fixedrange=True,
+                forced_mag=getattr(self, "manual_mag", None),
+                label_overrides=getattr(self, "_label_settings_config", None),
+                x_axis_numeric=bool((getattr(self, "_label_axis_numeric", {}) or {}).get("x", True)),
+                y_axis_numeric=bool((getattr(self, "_label_axis_numeric", {}) or {}).get("y", True)),
+            )
+
+            current_margin_r = self.MARGIN_R + (self.ADDITIONAL_Y2_MARGIN if show_cdf else 0)
+            if hasattr(self, "slider"):
+                self.slider.setMargins(self.MARGIN_L, current_margin_r)
+            if hasattr(self, "overlay") and self.overlay and hasattr(self.overlay, "set_margins"):
+                self.overlay.set_margins(self.MARGIN_L, current_margin_r, self.MARGIN_T, self.MARGIN_B)
+
+            layout_dict = {
+                "template": "plotly_white",
+                "xaxis": axis_style.get("xaxis", {}),
+                "yaxis": axis_style.get("yaxis", {}),
+                "barmode": "overlay",
+                "showlegend": False,
+                "margin": dict(l=self.MARGIN_L, r=current_margin_r, t=self.MARGIN_T, b=self.MARGIN_B),
+                "plot_bgcolor": "#fcfcfc",
+                "paper_bgcolor": "#ffffff",
+            }
+
+
+            fig = go.Figure()
+            fig.add_trace(go.Histogram(
+                x=plot_samples,
+                name="\u6a21\u62df\u6837\u672c",
+                histnorm=histnorm,
+                autobinx=False,
+                xbins=dict(start=x_min, end=x_max, size=bin_width),
+                marker=dict(
+                    color=DriskChartFactory._hex_to_rgba(DRISK_COLOR_CYCLE_THEO[0], 0.72),
+                    line=dict(width=0.5, color=DriskChartFactory._hex_to_rgba(DRISK_COLOR_CYCLE_THEO[0], 0.95)),
+                ),
+            ))
+
+            if show_cdf:
+                xs = np.sort(plot_samples)
+                ys = np.arange(1, xs.size + 1, dtype=float) / float(xs.size)
+                DriskChartFactory._inject_overlay_cdf(
+                    fig,
+                    layout_dict,
+                    xs,
+                    ys,
+                    color=DRISK_COLOR_CYCLE_THEO[0],
+                )
+
+            fig.update_layout(layout_dict)
+            plot_json = json.dumps(fig.to_dict(), cls=plotly.utils.PlotlyJSONEncoder)
+
+            self._show_skeleton("\u6b63\u5728\u7ed8\u56fe...")
+            self._render_token += 1
+            self._data_sent = True
+
+            self._plot_host.load_plot(
+                plot_json=plot_json,
+                js_mode="histogram",
+                js_logic="",
+                initial_lr=None,
+                static_plot=True,
+            )
+
+            self._after_plot_update()
+            self._maybe_hide_skeleton()
+
+        except Exception as e:
+            self._show_histogram_error_popup(e)
+
     def init_chart(self, y_max):
         """
         图表初始化入口。
@@ -1134,6 +1302,13 @@ class DistributionBuilderRenderStatsMixin:
             # 从界面读取当前预览模式指令
             # 例如："cdf"、"rel_freq"、"pdf"、"pdf_cdf"、"pmf" 等
             cmd = self.get_preview_mode()
+            if self._is_compound_splice_preview():
+                if cmd == "cdf":
+                    self._render_channel_cdf()
+                    return
+                self._render_channel_compound_splice_simulation(cmd)
+                return
+
 
             # 若外部未显式传入 y_max，则根据当前 y_data 自动估算
             if y_max is None:

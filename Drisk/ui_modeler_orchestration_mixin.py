@@ -1,4 +1,5 @@
 # ui_modeler_orchestration_mixin.py
+# -*- coding: utf-8 -*-
 """
 本模块提供分布构建器（DistributionBuilderDialog）的生命周期调度与状态编排混合类（Mixin）。
 
@@ -200,12 +201,49 @@ class DistributionBuilderOrchestrationMixin:
         # [关键修复]：在序列化主参数时，对包含逗号的数组型输入自动补全大括号 {}。
         # 目的：防止参数在解析层发生非预期的扁平化溢出（Flattening Disaster）。
         vals = []
+        formula_arg_keys = set()
+        current_func_name = str(self.config.get("func_name", "") or "")
+        current_dist_key = str(getattr(self, "dist_type", "") or "")
+        special_key = (current_func_name or current_dist_key).lower()
+
+        is_compound = "compound" in special_key
+        is_splice = "splice" in special_key
+
+        if is_compound:
+            formula_arg_keys = {"Frequency", "Severity"}
+        elif is_splice:
+            formula_arg_keys = {"Left", "Right", "Dist#1", "Dist#2"}
+
+
         for k, _, _ in self.config.get('params', []):
             val = self.inputs[k].text().strip()
-            # 检查是否包含逗号且未被合理的数组/字符串标识符包裹
-            if ',' in val and not any(val.startswith(c) for c in ['{', '[', '"', "'"]):
+
+            if is_compound and k == "Limit":
+                is_inf_text = val.lower() in ("inf", "infinity") or val == "\u221e"
+                if is_inf_text:
+                    val = ""
+
+            raw_val = val.strip()
+            unwrapped_val = raw_val
+            if raw_val.startswith("{") and raw_val.endswith("}"):
+                inner = raw_val[1:-1].strip()
+                if re.match(r"^=?\s*@?\s*Drisk[A-Za-z0-9_]*\s*\(.*\)\s*$", inner, re.IGNORECASE):
+                    unwrapped_val = inner
+
+            is_formula_value = bool(
+                re.match(r"^=?\s*@?\s*Drisk[A-Za-z0-9_]*\s*\(.*\)\s*$", unwrapped_val, re.IGNORECASE)
+            )
+
+            if k in formula_arg_keys or is_formula_value:
+                val = unwrapped_val
+                if val.startswith("="):
+                    val = val[1:].strip()
+            elif ',' in val and not any(val.startswith(c) for c in ['{', '[', '"', "'"]):
                 val = f"{{{val}}}"
+
             vals.append(val)
+
+
             
         core = f"{func}({', '.join(vals)}"
         
@@ -312,6 +350,17 @@ class DistributionBuilderOrchestrationMixin:
         如果用户手动修改了顶部公式编辑栏，则优先保存用户的编辑内容；
         否则调用公式生成器生成标准字符串。随后结束并关闭对话框进程。
         """
+        # 插入前强制同步一次，避免刚输入数字或刚选择单元格后防抖刷新尚未写入顶部公式栏。
+        try:
+            if hasattr(self, "_param_debounce") and self._param_debounce.isActive():
+                self._param_debounce.stop()
+            if len(getattr(self, "formula_segments", []) or []) == 1:
+                self.update_formula_bar()
+            elif hasattr(self, "sync_current_segment_to_formula"):
+                self.sync_current_segment_to_formula()
+        except Exception:
+            pass
+
         if self.formula_edit.text().strip():
             self.result_formula = self.formula_edit.text()
         else:
