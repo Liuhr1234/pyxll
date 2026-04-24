@@ -640,6 +640,13 @@ class ResultsMainRenderService:
             if is_discrete_cdf and ys.size > 0:
                 ys = np.maximum.accumulate(np.clip(ys, 0.0, 1.0))
 
+            # 将曲线两端延伸至视图边界：左端 y=0，右端 y=1
+            if xs.size > 0:
+                view_left = float(getattr(dialog, "view_min", xs[0]))
+                view_right = float(getattr(dialog, "view_max", xs[-1]))
+                xs = np.concatenate([[view_left], xs, [view_right]])
+                ys = np.concatenate([[0.0], ys, [1.0]])
+
             y_upper, y_lower = None, None
             if is_dkw_overlay:
                 engine_mode = getattr(dialog, "ci_engine_mode", "fast")

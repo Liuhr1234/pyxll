@@ -77,7 +77,7 @@ def _sync_application_icon_from(window_widget: QWidget) -> None:
         if icon is not None and not icon.isNull():
             app.setWindowIcon(icon)
     except Exception:
-        drisk_env.log.debug("_sync_application_icon_from failed", exc_info=True)
+        print("_sync_application_icon_from failed", exc_info=True)
 
 
 def _rename_sim_with_dialog(parent, sim_id) -> bool:
@@ -158,17 +158,31 @@ class VerticalRotatableValue(QWidget):
 
     def _expand(self):
         """展开为水平输入框，计算文本所需的宽度，并获取键盘焦点。"""
+        print("expand???")
         fm = QFontMetrics(self.edit.font())
         text_w = fm.horizontalAdvance(self.edit.text()) + 15
-        
+
         # 限制展开的最大与最小宽度
         final_w = max(35, min(160, text_w))
-        
+
         self.setFixedSize(final_w, 20)
         self.edit.setGeometry(0, 0, final_w, 20)
-        
+
         self.edit.show()
-        self.edit.setFocus()
+        self.edit.setFocus(Qt.MouseFocusReason)
+
+        # 与 AutoSelectLineEdit 对齐：用 Win32 确保 Qt 窗口成为前台窗口
+        # 否则 Excel 在 Windows 消息层仍持有键盘输入，导致无法输入
+        window = self.topLevelWidget()
+        if window:
+            window.raise_()
+            window.activateWindow()
+            try:
+                import ctypes
+                ctypes.windll.user32.AllowSetForegroundWindow(-1)
+                ctypes.windll.user32.SetForegroundWindow(int(window.winId()))
+            except Exception:
+                pass
 
     def eventFilter(self, obj, event):
         """事件过滤器：当输入框失去焦点时自动触发折叠。"""
@@ -190,7 +204,7 @@ class VerticalRotatableValue(QWidget):
         """非编辑状态下点击任意区域均触发输入框展开。"""
         if not self.edit.isVisible():
             self._expand()
-            event.accept()
+        super().mousePressEvent(event)
 
     def paintEvent(self, event):
         """自定义绘制事件：处理旋转 90 度的文本渲染。"""
@@ -408,7 +422,6 @@ class HorizontalSingleSlider(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFocusPolicy(Qt.ClickFocus)
         self.setFixedHeight(32) 
         self.margin_left = 10
         self.margin_right = 10
@@ -906,7 +919,7 @@ class ScatterOverlayDialog(QDialog):
         """遍历 UI，返回所有已勾选态的叠加项列表。"""
         return [self.list_sims.item(i).data(Qt.UserRole) for i in range(self.list_sims.count()) if self.list_sims.item(i).checkState() == Qt.Checked]
 
-
+"""Drisk - 散点图设置"""
 class ScatterClipSettingsDialog(QDialog):
     """
     数据裁剪设置窗：
@@ -1397,7 +1410,10 @@ class ScatterPlotlyDialog(QDialog):
         
         self.content_splitter.splitterMoved.connect(self._on_splitter_moved)
         self.grid_widget.installEventFilter(self)
-        
+
+        # 给 WebEngine 内部 Chromium 子控件装上 eventFilter，拦截其抢焦点行为
+        QTimer.singleShot(100, lambda: self._install_webview_child_filters())
+
         # == 右侧统计指标面板 ==
         self.right_panel = QFrame()
         self.right_panel.setMinimumWidth(180)
@@ -1430,9 +1446,8 @@ class ScatterPlotlyDialog(QDialog):
         # == 悬浮输入框注入网格容器环境 ==
         self.float_x = create_floating_value_with_mag(self.grid_widget, height=22, opacity=0.95)
         self.float_y = VerticalRotatableValue(self.grid_widget)
-        self.float_y._collapse() 
-        self.float_x.edit.setFocusPolicy(Qt.ClickFocus)
-        
+        self.float_y._collapse()
+
         # 交互信使互通
         self.slider_x.valueChanged.connect(self._on_slider_x_moved)
         self.slider_y.valueChanged.connect(self._on_slider_y_moved) 
@@ -1646,7 +1661,7 @@ class ScatterPlotlyDialog(QDialog):
             self.web_view.page().runJavaScript(js, _cb)
 
     def eventFilter(self, obj, event):
-        """当内部 Splitter 切分栏发生移动而触发容器 Resize 时的拦截器。"""
+        """Resize 拦截 + 阻止 WebEngine 子控件在输入框活跃时抢焦点。"""
         if obj == getattr(self, 'grid_widget', None) and event.type() == QEvent.Resize:
             try:
                 if hasattr(self, "chart_skeleton") and self.chart_skeleton:
@@ -1654,7 +1669,26 @@ class ScatterPlotlyDialog(QDialog):
             except Exception:
                 pass
             self._request_layout_refresh()
+
+        # 阻止 WebEngine 内部子控件在输入框活跃时抢焦点
+        if event.type() == QEvent.FocusIn:
+            web_view = getattr(self, 'web_view', None)
+            if web_view and obj is not web_view and isinstance(obj, QWidget):
+                if web_view.isAncestorOf(obj):
+                    active = QApplication.focusWidget()
+                    float_x_edit = getattr(getattr(self, 'float_x', None), 'edit', None)
+                    float_y = getattr(self, 'float_y', None)
+                    if active in [float_x_edit, float_y]:
+                        return True  # 吞掉焦点转移，保留输入框焦点
+
         return super().eventFilter(obj, event)
+
+    def _install_webview_child_filters(self):
+        """延迟给 WebEngine 内部子控件安装 eventFilter（Chromium 子窗口需要等待初始化）。"""
+        if not hasattr(self, 'web_view') or self.web_view is None:
+            return
+        for child in self.web_view.findChildren(QWidget):
+            child.installEventFilter(self)
 
     def _install_chart_context_menu_hook(self):
         """强行修改掉内置 Chromium 的网页右键菜单，映射到散点工具条功能上。"""
@@ -2421,10 +2455,15 @@ class ScatterPlotlyDialog(QDialog):
             if hasattr(self, 'overlay_controller'):
                 self.overlay_controller.schedule_rect_sync()
                 QTimer.singleShot(120, self.overlay_controller.schedule_rect_sync)
-                
-            self.float_x.edit.clearFocus()
-            self.web_view.setFocus()
-                
+
+            # 只在没有输入控件持有焦点时才转移焦点到 web_view
+            active = QApplication.focusWidget()
+            float_x_edit = getattr(getattr(self, 'float_x', None), 'edit', None)
+            float_y = getattr(self, 'float_y', None)
+            if active not in [float_x_edit, float_y]:
+                self.float_x.edit.clearFocus()
+                self.web_view.setFocus()
+
             self._update_crosshair_ui()
             self.update_stats_ui()
             
@@ -2454,13 +2493,13 @@ class ScatterPlotlyDialog(QDialog):
                 if t is not None and t.isActive():
                     t.stop()
             except Exception:
-                drisk_env.logger.debug("closeEvent: failed to stop %s", attr, exc_info=True)
+                print("closeEvent: failed to stop %s", attr, exc_info=True)
         try:
             if hasattr(self, "web_view") and self.web_view is not None:
                 recycle_shared_webview(self.web_view)
                 self.web_view = None
         except Exception:
-            drisk_env.logger.debug("closeEvent: failed to recycle web_view", exc_info=True)
+            print("closeEvent: failed to recycle web_view", exc_info=True)
         super().closeEvent(event)
 
 
@@ -3034,8 +3073,5 @@ def show_scatter_dialog_from_macro(sim_id):
         x_addrs = config_dlg.x_addrs
         
         _global_scatter_plot_dialog = ScatterPlotlyDialog(resolved_sim_id, y_addr, x_addrs)
-        try:
-            _global_scatter_plot_dialog.exec()
-        finally:
-            # 窗体关闭后必须释放全局锁，归还 C++ 的窗体指针回收权，规避偶发闪退
-            _global_scatter_plot_dialog = None
+        _global_scatter_plot_dialog.exec()
+        _global_scatter_plot_dialog = None

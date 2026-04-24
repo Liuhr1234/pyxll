@@ -19,7 +19,6 @@ class DistributionBuilderFormulaFlowMixin:
     [混合类] 负责处理复杂的嵌套公式解析、多段分布参数的提取与状态同步。
     设计意图：作为 DistributionBuilderDialog 的功能扩展模块被继承，解耦公式解析与 UI 渲染逻辑。
     """
-
     # =======================================================
     # 1. UI 状态与提示反馈 (UI State & Prompt Feedback)
     # =======================================================
@@ -31,7 +30,6 @@ class DistributionBuilderFormulaFlowMixin:
         multi = len(self.formula_segments) > 1
         if not hasattr(self, "seg_hint"):
             return
-
         # 场景一：单段公式
         # 行为：隐藏提示标签和局部同步按钮，保持界面简洁。
         if not multi:

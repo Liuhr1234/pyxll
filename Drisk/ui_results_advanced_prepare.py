@@ -119,17 +119,12 @@ def build_advanced_payload(sim_result, output_key: str, output_data, *, min_rows
     
     input_dict = getattr(sim_result, "input_cache", {})
     if not input_dict:
-        # 如果当前模拟没有任何输入分布产生，则高级分析无从谈起，抛出精准异常
         raise AdvancedPreparationError("missing_input", "没有可用的输入分布数据。")
 
     df_data = {}
-    valid_input_cols = []
     input_mapping = {}
     makeinput_base_keys = set()
     non_makeinput_counts_by_base = {}
-    
-    # 以输出数组的长度作为基准线，所有输入数组的长度不能超过此基准
-    n_out = len(output_data)
 
     # 尝试获取 Excel COM 句柄用于命名推断
     xl_app = None
@@ -147,8 +142,7 @@ def build_advanced_payload(sim_result, output_key: str, output_data, *, min_rows
         fallback_label=output_key.split("!")[-1] if "!" in output_key else output_key,
     )
 
-    # Pre-scan cache keys once so MakeInput de-duplication can stay compatible
-    # without dropping legitimate multi-input series from numpy/vectorized runs.
+    # Pre-scan：收集 MAKEINPUT 键和各基础键的非 MAKEINPUT 变体计数
     for raw_in_key in input_dict.keys():
         base_key, suffix = _split_input_cache_key(raw_in_key)
         if not base_key:
@@ -156,14 +150,16 @@ def build_advanced_payload(sim_result, output_key: str, output_data, *, min_rows
         base_upper = base_key.upper()
         if suffix == "MAKEINPUT":
             makeinput_base_keys.add(base_upper)
-            continue
-        non_makeinput_counts_by_base[base_upper] = non_makeinput_counts_by_base.get(base_upper, 0) + 1
+        else:
+            non_makeinput_counts_by_base[base_upper] = non_makeinput_counts_by_base.get(base_upper, 0) + 1
 
     # ---------------------------------------------------------
     # Step A: 遍历所有输入变量，提取数据并执行智能名称映射
     # ---------------------------------------------------------
+    # 以输出数组长度为上限基准，各输入取自身与输出的最短长度对齐
+    n_out = len(output_data)
+
     for in_key, in_array in input_dict.items():
-        # 过滤空数组
         if len(in_array) == 0:
             continue
 
@@ -171,15 +167,15 @@ def build_advanced_payload(sim_result, output_key: str, output_data, *, min_rows
         if not base_in_key:
             continue
 
-        # Keep legacy behavior only for a likely duplicate pair:
-        # one plain numeric variant (e.g. A1_1) + one A1_MAKEINPUT.
-        # If multiple non-MakeInput variants exist under the same base,
-        # treat them as independent candidates and keep them.
+        # MAKEINPUT 键本身跳过（它是标记键，不含独立样本序列）
+        if key_suffix == "MAKEINPUT":
+            continue
+
+        # 若该基础键同时存在 MAKEINPUT 标记且只有唯一一个非 MAKEINPUT 变体，
+        # 说明是重复对，跳过该变体以避免在 tornado 中出现重复输入条目
         base_upper = base_in_key.upper()
-        if base_upper in makeinput_base_keys and key_suffix != "MAKEINPUT":
-            non_makeinput_count = non_makeinput_counts_by_base.get(base_upper, 0)
-            if non_makeinput_count <= 1:
-                continue
+        if base_upper in makeinput_base_keys and non_makeinput_counts_by_base.get(base_upper, 0) <= 1:
+            continue
 
         # 提取输入变量属性
         in_attrs = (
@@ -196,45 +192,51 @@ def build_advanced_payload(sim_result, output_key: str, output_data, *, min_rows
             fallback_label=base_in_key.split("!")[-1] if "!" in base_in_key else base_in_key,
         )
 
-        # 冲突防御机制：处理多输入变量推断出相同名字的情况，自动追加计数后缀 (_1, _2...)
+        # 冲突防御：自动追加计数后缀避免同名列覆盖
         final_col_name = in_name
         counter = 1
         while final_col_name in df_data:
             final_col_name = f"{in_name}_{counter}"
             counter += 1
 
-        # 截取对齐数据长度并存入字典
-        df_data[final_col_name] = in_array[:n_out] if len(in_array) > n_out else in_array
-        valid_input_cols.append(final_col_name)
+        # 对齐到 min(输入长度, 输出长度)，防止 DataFrame 构造时列长不一致崩溃
+        n_aligned = min(len(in_array), n_out)
+        df_data[final_col_name] = in_array[:n_aligned]
         input_mapping[final_col_name] = base_in_key
 
     # ---------------------------------------------------------
-    # Step B: 矩阵合成与严格无情清洗
+    # Step B: 矩阵合成与严格清洗
     # ---------------------------------------------------------
-    
-    # 安全拦截：若没有提纯出任何输入数据，阻断流程
-    if not valid_input_cols:
+
+    if not df_data:
         raise AdvancedPreparationError("no_valid_inputs", "未找到可用于高级分析的有效输入列。")
 
-    # 避免输出列名恰好与输入列名完全一致产生冲突
+    # 避免输出列名与输入列名冲突
     if output_display_name in df_data:
         output_display_name = f"{output_display_name}_结果"
-        
-    # 将目标输出数据压入字典
-    df_data[output_display_name] = output_data[:n_out] if len(output_data) > n_out else output_data
 
-    # .apply(pd.to_numeric) 强制转化为数值，将文本/错误等非数字转化为 NaN
-    # .dropna() 彻底剔除任何包含 NaN 的横向样本行，确保相关性计算等矩阵运算不会崩溃
+    # 输出数组按各输入对齐后的最短长度截断，保证所有列等长
+    n_final = min((len(v) for v in df_data.values()), default=n_out)
+    df_data[output_display_name] = output_data[:n_final]
+    for col in list(df_data.keys()):
+        if col != output_display_name:
+            df_data[col] = df_data[col][:n_final]
+
     full_df = pd.DataFrame(df_data).apply(pd.to_numeric, errors="coerce").dropna()
-    
-    # 样本底线校验：高级分析需要基础样本支撑，否则结果没有统计学意义
+
+    # dropna 后重新收集仍有有效数据的输入列（排除全 NaN 列）
+    valid_input_cols = [c for c in input_mapping if c in full_df.columns]
+
+    if not valid_input_cols:
+        raise AdvancedPreparationError("no_valid_inputs", "所有输入列清洗后均无有效数据。")
+
+    # 样本底线校验
     if len(full_df) < min_rows:
         raise AdvancedPreparationError(
             "insufficient_rows",
             f"清洗后的有效数据行数不足: {len(full_df)} < {min_rows}。"
         )
 
-    # 交付最终的标准数据载荷
     return AdvancedPreparedPayload(
         full_df=full_df,
         output_display_name=output_display_name,

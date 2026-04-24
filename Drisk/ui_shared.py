@@ -512,26 +512,55 @@ class SmartFormatter:
 
 class AutoSelectLineEdit(QLineEdit):
     """获得焦点或点击时自动全选内容的输入框"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFocusPolicy(Qt.StrongFocus)
+
+    @staticmethod
+    def _win32_grab_focus(hwnd: int):
+        try:
+            import ctypes
+            ctypes.windll.user32.AllowSetForegroundWindow(-1)
+            ctypes.windll.user32.SetForegroundWindow(hwnd)
+        except Exception:
+            pass
+
     def focusInEvent(self, event):
         super().focusInEvent(event)
+        # 获焦时立即通过 Win32 确保本窗口为前台窗口，防止 Excel 在下一个消息循环夺回焦点
+        window = self.topLevelWidget()
+        if window:
+            window.raise_()
+            window.activateWindow()
+            self._win32_grab_focus(int(window.winId()))
         QTimer.singleShot(0, self.selectAll)
 
     def mousePressEvent(self, event):
-        # 当点击输入框时，强制将当前 Qt 窗口提升为系统激活窗口，切断 Excel 的焦点劫持
-        window = self.window()
-        if window:
-            window.activateWindow()
-            
+        print("mousePressEvent")
         super().mousePressEvent(event)
+        window = self.topLevelWidget()
+        if window:
+            window.raise_()
+            window.activateWindow()
+            self._win32_grab_focus(int(window.winId()))
         if not self.hasFocus():
             QTimer.singleShot(0, self.selectAll)
 
     def keyPressEvent(self, event):
+        print("keyPressEvent")
+            # 每次按键时重新确保窗口焦点，防止 Excel 在输入过程中夺回焦点
+        window = self.topLevelWidget()
+        if window:
+            self._win32_grab_focus(int(window.winId()))
+
         if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            print("Enter pressed, emitting returnPressed signal")
             self.clearFocus()
             self.returnPressed.emit()
             event.accept()
         else:
+            print(f"Key pressed: {event.text()} (code: {event.key()})")
             super().keyPressEvent(event)
 
 class SuffixAutoSelectLineEdit(AutoSelectLineEdit):

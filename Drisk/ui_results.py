@@ -1242,8 +1242,15 @@ class UltimateRiskDialog(QDialog):
 
                 ck_pure = ck.split('!')[-1] if '!' in ck else ck
                 base_ck_pure = base_ck.split('!')[-1] if '!' in base_ck else base_ck
-                use_lbl = self.current_key if ck_pure == base_ck_pure else var_lbl
+                ck_sheet = ck.split('!')[0] if '!' in ck else ""
+                base_ck_sheet = base_ck.split('!')[0] if '!' in base_ck else ""
+                same_cell = ck_pure == base_ck_pure and ck_sheet == base_ck_sheet
+                use_lbl = self.current_key if same_cell else var_lbl
                 overlay_name = f"{use_lbl} (sim{sid})"
+                # 不同表格同一单元格地址时追加表格标识以避免键冲突
+                if ck_pure == base_ck_pure and not same_cell:
+                    sheet_tag = ck_sheet if ck_sheet else ck
+                    overlay_name = f"{use_lbl}[{sheet_tag}] (sim{sid})"
 
                 if overlay_name not in seen_names:
                     self.display_keys.append(overlay_name)

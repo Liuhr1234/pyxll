@@ -1,6 +1,7 @@
 # ui_config.py
 """
 统一模拟配置面板 UI
+Drisk - 运行模拟配置
 """
 from PySide6.QtWidgets import (QApplication, QDialog, QVBoxLayout, QHBoxLayout, QCheckBox, 
                                QLabel, QLineEdit, QPushButton, QMessageBox, QGroupBox, QFormLayout)

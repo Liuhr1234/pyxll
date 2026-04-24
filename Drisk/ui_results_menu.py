@@ -134,13 +134,15 @@ class ResultsMenuRouter:
             m_disc.addAction('不叠加').triggered.connect(lambda: dialog._on_view_cmd_triggered('离散概率', 'discrete'))
             m_disc.addAction('叠加累积概率').triggered.connect(lambda: dialog._on_view_cmd_triggered('离散概率', 'discrete_cdf'))
             
+            menu.addAction('相对频率').triggered.connect(lambda: dialog._on_view_cmd_triggered('相对频率', 'relfreq'))
+            
             m_cdf = menu.addMenu('累积概率')
             m_cdf.addAction('不叠加').triggered.connect(lambda: dialog._on_view_cmd_triggered('累积概率', 'cdf'))
             m_cdf.addAction('叠加置信区间').triggered.connect(lambda: dialog._on_view_cmd_triggered('累积概率', 'cdf_dkw'))
             
             menu.addAction('核密度').triggered.connect(lambda: dialog._on_view_cmd_triggered('核密度', 'pdfcurve'))
 
-            m_pdf = menu.addMenu('概率密度（柱状）')
+            m_pdf = menu.addMenu('概率密度')
             m_pdf.addAction('不叠加').triggered.connect(lambda: dialog._on_view_cmd_triggered('概率密度', 'histogram'))
             
             # [冲突防范] 若存在多个情景叠加，在直方图上再叠加 KDE 曲线会导致画面极其混乱（线条穿模），因此隐藏。

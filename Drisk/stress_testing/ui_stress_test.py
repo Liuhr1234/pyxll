@@ -14,7 +14,7 @@ class StressTestInputDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("压力测试 - 配置")
+        self.setWindowTitle("Drisk - 压力测试配置")
         self.setMinimumWidth(560)
         self.x_cells: list[str] = []   # ["Sheet1!A1", ...]
         self.y_cell: str = ""
@@ -136,18 +136,18 @@ class StressTestInputDialog(QDialog):
 
             combo = QComboBox()
             combo.addItems(["百分比 (%)", "数值"])
-            prev_type, prev_lo, prev_hi = old.get(addr, ("百分比 (%)", -20.0, 20.0))
+            prev_type, prev_lo, prev_hi = old.get(addr, ("百分比 (%)", 0.0, 100.0))
             combo.setCurrentText(prev_type)
             self._table.setCellWidget(r, 1, combo)
 
             lo_spin = QDoubleSpinBox()
-            lo_spin.setRange(-1e9, 1e9)
+            lo_spin.setRange(0, 100)
             lo_spin.setDecimals(2)
             lo_spin.setValue(prev_lo)
             self._table.setCellWidget(r, 2, lo_spin)
 
             hi_spin = QDoubleSpinBox()
-            hi_spin.setRange(-1e9, 1e9)
+            hi_spin.setRange(0, 100)
             hi_spin.setDecimals(2)
             hi_spin.setValue(prev_hi)
             self._table.setCellWidget(r, 3, hi_spin)
