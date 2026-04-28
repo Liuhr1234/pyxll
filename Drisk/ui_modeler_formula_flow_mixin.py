@@ -19,6 +19,7 @@ class DistributionBuilderFormulaFlowMixin:
     [混合类] 负责处理复杂的嵌套公式解析、多段分布参数的提取与状态同步。
     设计意图：作为 DistributionBuilderDialog 的功能扩展模块被继承，解耦公式解析与 UI 渲染逻辑。
     """
+
     # =======================================================
     # 1. UI 状态与提示反馈 (UI State & Prompt Feedback)
     # =======================================================
@@ -30,6 +31,7 @@ class DistributionBuilderFormulaFlowMixin:
         multi = len(self.formula_segments) > 1
         if not hasattr(self, "seg_hint"):
             return
+
         # 场景一：单段公式
         # 行为：隐藏提示标签和局部同步按钮，保持界面简洁。
         if not multi:
@@ -44,9 +46,9 @@ class DistributionBuilderFormulaFlowMixin:
         total = len(self.formula_segments)
         dk = self.formula_segments[idx].get("dist_key", "") if self.formula_segments else ""
         
-        # 更新 UI 操作提示词
-        self.seg_hint.setText(f"多段公式：正在编辑第 {idx + 1}/{total} 段（{dk}）。参数修改不会自动写回公式。")
-        self.seg_hint.setVisible(True)
+        # 不再显示顶部多段提示，避免占用公式栏右侧空间。
+        self.seg_hint.setText("")
+        self.seg_hint.setVisible(False)
 
         # 更新同步按钮的状态
         if hasattr(self, "btn_sync_seg"):

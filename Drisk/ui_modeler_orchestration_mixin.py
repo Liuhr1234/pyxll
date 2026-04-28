@@ -190,6 +190,35 @@ class DistributionBuilderOrchestrationMixin:
     # =======================================================
     # 3. 公式生成与提交流程 (Formula Generation & Commit Flow)
     # =======================================================
+    def _format_compound_splice_param(self, key, val, formula_arg_keys, is_compound, is_splice):
+        text = str(val or "").strip()
+        if not text:
+            return text
+
+    # Remove one layer of outer braces if the input already has them.
+        if text.startswith("{") and text.endswith("}"):
+            text = text[1:-1].strip()
+
+        is_formula = bool(
+            re.match(r"^=?\s*@?\s*Drisk[A-Za-z0-9_]*\s*\(.*\)\s*$", text, re.IGNORECASE)
+    )
+
+    # Compound / Splice专属规则:
+    # nested distribution args must stay bare, never wrapped as {Drisk...(...)}.
+        if is_compound or is_splice:
+            if key in formula_arg_keys or is_formula:
+                return text[1:].strip() if text.startswith("=") else text
+            return text
+
+    # Original behavior for other distributions.
+        if key in formula_arg_keys or is_formula:
+            return text[1:].strip() if text.startswith("=") else text
+
+        if "," in text and not any(text.startswith(c) for c in ['{', '[', '"', "'"]):
+            return f"{{{text}}}"
+
+        return text
+
     def gen_func_str(self):
         """
         公式序列化引擎：
@@ -223,25 +252,15 @@ class DistributionBuilderOrchestrationMixin:
                 if is_inf_text:
                     val = ""
 
-            raw_val = val.strip()
-            unwrapped_val = raw_val
-            if raw_val.startswith("{") and raw_val.endswith("}"):
-                inner = raw_val[1:-1].strip()
-                if re.match(r"^=?\s*@?\s*Drisk[A-Za-z0-9_]*\s*\(.*\)\s*$", inner, re.IGNORECASE):
-                    unwrapped_val = inner
-
-            is_formula_value = bool(
-                re.match(r"^=?\s*@?\s*Drisk[A-Za-z0-9_]*\s*\(.*\)\s*$", unwrapped_val, re.IGNORECASE)
+            val = self._format_compound_splice_param(
+                k,
+                val,
+                formula_arg_keys=formula_arg_keys,
+                is_compound=is_compound,
+                is_splice=is_splice,
             )
-
-            if k in formula_arg_keys or is_formula_value:
-                val = unwrapped_val
-                if val.startswith("="):
-                    val = val[1:].strip()
-            elif ',' in val and not any(val.startswith(c) for c in ['{', '[', '"', "'"]):
-                val = f"{{{val}}}"
-
             vals.append(val)
+
 
 
             

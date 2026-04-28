@@ -661,6 +661,31 @@ def find_first_distribution_in_formula(formula):
         if k:
             return k, []
     return None, []
+def _strip_outer_braces(text):
+    s = str(text or "").strip()
+    if s.startswith("{") and s.endswith("}"):
+        inner = s[1:-1].strip()
+        if inner:
+            return inner
+    return s
+
+def _clean_compound_splice_formula_display(formula_text):
+    text = str(formula_text or "")
+    return re.sub(
+        r"\{\s*(=?\s*@?\s*Drisk[A-Za-z0-9_]*\s*\([^{}]*\))\s*\}",
+        r"\1",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+def _normalize_compound_splice_initial_params(params):
+    if isinstance(params, dict):
+        return {k: _strip_outer_braces(v) for k, v in params.items()}
+    if isinstance(params, (list, tuple)):
+        return [_strip_outer_braces(v) for v in params]
+    if params is None:
+        return params
+    return _strip_outer_braces(params)
 
 
 # =======================================================
@@ -731,8 +756,6 @@ class DistributionSelector(QDialog):
         self.nav_list.addItem(QListWidgetItem("离散分布"))
         body_layout.addWidget(self.nav_list)
         self.nav_list.addItem(QListWidgetItem("特殊分布"))
-
-        # 右侧堆叠卡片区 (页面容器)
         self.page_stack = QStackedWidget()
         body_layout.addWidget(self.page_stack, 1)
 
@@ -853,18 +876,10 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
                  full_formula="", cell_address="", parent=None, display_name_hint=None):
         super().__init__(parent)
 
-        # 解析原始公式中显式写死的属性
         explicit_attrs = extract_all_attributes_from_formula(full_formula if full_formula else f"={dist_type}()")
-        # 将合并后的属性赋给 initial_attrs，供 setup_attribute_inputs 自动渲染到输入框
-        # 仅允许将公式中显式存在的属性预填至输入框。
         self.initial_attrs = explicit_attrs
-
-        # 仅在显示层保留手动修改的图表标题；绝对不要修改底层的元数据属性。
         self._chart_title_display_override = None
-        # 从相邻单元格提取的仅供显示的名称提示，用作兜底命名。
         self._cell_detected_display_hint = str(display_name_hint).strip() if display_name_hint else ""
-
-        # 设置全局兜底名称（用户手动清空输入框时恢复的默认标题）
         self.fallback_chart_name = (
             self._cell_detected_display_hint
             if self._cell_detected_display_hint
@@ -874,15 +889,13 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
              
         # 实例化图名标签
         self.chart_title_label = QLabel(self.chart_display_name)
-        self.chart_title_label.setObjectName("chartTitleLabel") # 🟢 新增对象标识
+        self.chart_title_label.setObjectName("chartTitleLabel") 
         title_font = QFont()
         title_font.setFamilies(["Arial", "Microsoft YaHei"]) 
         title_font.setPointSize(14)
         self.chart_title_label.setFont(title_font)
         self.chart_title_label.setAlignment(Qt.AlignCenter)
         self.chart_title_label.setStyleSheet("color: #333333; margin: 0px; padding: 0px;")
-
-        # [参数合法性规则字典]：用于防呆和输入框校验变红
         def _rules_by_position(dist_key, indexed_rules, cross=None):
            cfg = get_dist_config(dist_key) or {}
            params = cfg.get("params", [])
@@ -967,8 +980,6 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
             title += f" : {cell_address}"
         self.setWindowTitle(title)
         set_drisk_icon(self)
-
-        # 🔴 自适应屏幕大小逻辑 (完美适配 13 寸 ~ 32 寸)
         screen_geo = QApplication.primaryScreen().availableGeometry()
         # 设定理想大小，但绝不跨越屏幕可用宽度的 90% 和高度的 80%
         target_w = min(1200, int(screen_geo.width() * 0.90))
@@ -981,8 +992,6 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
             | Qt.WindowMaximizeButtonHint
             | Qt.WindowCloseButtonHint
         )
-
-        # 彻底重写 base_qss，使用高优先级选择器，实现精细排版控制
         base_qss = """
             QDialog { background-color: white; font-family: 'Microsoft YaHei'; }
             
@@ -1036,7 +1045,6 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
             }
             QLineEdit:focus { border-color: #40a9ff; }
         """
-        # 🟢【核心修复】：调换拼接顺序！把 base_qss 放后面，利用层叠规则覆盖掉 shared 里的 12px 设定
         self.setStyleSheet(drisk_combobox_qss() + drisk_scrollbar_qss() + base_qss)
 
         self.cell_address = cell_address
@@ -1045,14 +1053,14 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
         if not full_formula or not full_formula.startswith("="):
             cfg = get_dist_config(dist_type) or {}
             func = cfg.get('func_name', 'DriskNormal')
-            
-            # 🔴 修复 1：初始化公式时，如果默认参数里带有逗号且没有括号（比如数组），强行穿上 {} 防弹衣！避免解析错乱。
             defaults = []
             for p in cfg.get('params', []):
                 d_val = str(p[2]).strip()
                 if ',' in d_val and not any(d_val.startswith(c) for c in ['{', '[', '"', "'"]):
-                    d_val = f"{{{d_val}}}"
+                    if dist_type not in ("Compound", "Splice"):
+                        d_val = f"{{{d_val}}}"
                 defaults.append(d_val)
+
                 
             if not defaults: defaults = ["0", "1"]
             self.full_formula = f"={func}({','.join(defaults)})"
@@ -1069,6 +1077,15 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
 
         self.initial_params = initial_params or {}
         # 保留显式的公式属性；不要使用仅供展示的提示信息进行覆盖。
+        self.initial_params = initial_params or {}
+
+        # Compound / Splice 只在显示层去掉外层花括号，不改计算逻辑
+        if self.dist_type in ("Compound", "Splice"):
+            self.full_formula = _clean_compound_splice_formula_display(self.full_formula)
+            self.initial_params = _normalize_compound_splice_initial_params(self.initial_params)
+
+        self.initial_attrs = self.initial_attrs or {}
+
         self.initial_attrs = self.initial_attrs or {}
 
         # 状态控制锁
@@ -2414,6 +2431,19 @@ class DistributionBuilderDialog(DistributionBuilderRenderStatsMixin, Distributio
             if self.is_discrete and raw_low > -0.5 * discrete_align_step and axis_min < -discrete_align_step:
                 # 防呆：阻止极小的负浮点数噪声引发向外扩散一个多余离散步长的问题。
                 axis_min = -discrete_align_step
+
+            if not self.is_discrete:
+                try:
+                    special_key = str(getattr(self, "dist_type", "") or "").lower()
+                    if "splice" in special_key or "compound" in special_key:
+                        d_min = float(self.dist_obj.min_val())
+                        d_max = float(self.dist_obj.max_val())
+                        if math.isfinite(d_min) and axis_min >= d_min:
+                            axis_min = float(d_min - self.x_dtick)
+                        if math.isfinite(d_max) and axis_max <= d_max:
+                            axis_max = float(d_max + self.x_dtick)
+                except Exception:
+                    pass
 
             if axis_max <= axis_min:
                 axis_max = axis_min + self.x_dtick

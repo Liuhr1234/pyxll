@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
+# distribution_functions.py - 关键修复版 v8.0
 """分布函数模块 - 修复嵌套函数和引用单元格值问题 - 增强嵌套函数支持 - 完善单边截断退化处理 - 修正属性处理顺序 - 增加截断参数有效性检查 - 增加支持范围检查 - 修复loc/lock静态均值计算 - 支持花括号数组参数 - 支持区域引用自动转换 - 修复Cumul/Discrete解析 - 修复三角分布参数顺序错误 - 统一使用分布类计算截断均值 (涵盖所有分布) - 修复截断无效时返回#ERROR! - 修复百分位数超出范围返回#ERROR! - 新增对未知属性函数（Excel错误值）的检测，静态模式下返回#ERROR!"""
 import re
 import numpy as np
 import math
 import threading
 import time
-from pyxll import xl_func as _pyxll_xl_func
+from pyxll import xl_func as _pyxll_xl_func, xl_app
 from typing import List, Tuple, Dict, Any, Callable, Optional
 # 导入属性处理函数（包括静态模式设置）
 from attribute_functions import extract_markers_from_args, get_static_mode, is_marker_string, set_static_mode, create_marker_string
@@ -18,10 +18,9 @@ from constants import (
 
 
 def _extract_arg_names_from_xl_signature(signature: Optional[str]) -> List[str]:
-    """从 xl_func 签名提取参数名，忽略 var* 占位参数。"""
+    """从 xl_func 签名提取参数名（忽略 var* 占位参数）。"""
     if not isinstance(signature, str) or not signature.strip():
         return []
-
     left = signature.split(":", 1)[0]
     names: List[str] = []
     for part in left.split(","):
@@ -39,41 +38,208 @@ def _extract_arg_names_from_xl_signature(signature: Optional[str]) -> List[str]:
 
 
 def _build_auto_arg_descriptions(func_name: str, signature: Optional[str]) -> Dict[str, str]:
-    """根据 constants 里的文案自动生成参数说明。"""
+    """根据注册表文案构建 PyXLL arg_descriptions。"""
     info = get_distribution_info(func_name) or {}
+    labels = list(info.get("ui_param_labels", []) or [])
     param_descs = list(info.get("param_descriptions", []) or [])
     arg_names = _extract_arg_names_from_xl_signature(signature)
 
     mapping: Dict[str, str] = {}
     for idx, arg_name in enumerate(arg_names):
-        if idx < len(param_descs) and param_descs[idx]:
-            mapping[arg_name] = str(param_descs[idx]).strip()
+        label = str(labels[idx]).strip() if idx < len(labels) and labels[idx] is not None else ""
+        desc = str(param_descs[idx]).strip() if idx < len(param_descs) and param_descs[idx] is not None else ""
+        # 函数向导已单独显示参数名，这里只给描述，避免出现 A [A] 这种重复展示。
+        if desc:
+            mapping[arg_name] = desc
+        elif label and label.lower() != arg_name.lower():
+            mapping[arg_name] = label
     return mapping
 
+def _get_formula_from_caller() -> Optional[str]:
+    try:
+        app = xl_app()
+        caller = app.Caller
+        if hasattr(caller, "Formula"):
+            formula = caller.Formula
+            if formula and isinstance(formula, str):
+                return formula
+    except Exception:
+        pass
+    return None
+
+def _extract_function_args_from_formula(formula: str, func_name: str) -> Optional[List[str]]:
+    """
+    从 Excel 公式字符串中提取指定函数的参数列表。
+    支持函数调用前后有其他表达式（如 DriskOutput() + DriskCompound(...)）。
+    """
+    if not isinstance(formula, str) or not formula.strip():
+        return None
+    # 不区分大小写匹配函数名
+    pattern = re.compile(rf'\b{re.escape(func_name)}\s*\(', re.IGNORECASE)
+    match = pattern.search(formula)
+    if not match:
+        return None
+    start = match.end() - 1  # '(' 的位置
+    # 括号匹配
+    balance = 1
+    i = start + 1
+    while i < len(formula) and balance > 0:
+        if formula[i] == '(':
+            balance += 1
+        elif formula[i] == ')':
+            balance -= 1
+        i += 1
+    if balance != 0:
+        return None
+    inner = formula[start+1:i-1]   # 括号内的原始内容
+    # 按逗号分割参数，忽略括号内的逗号
+    args = []
+    current = []
+    balance = 0
+    for ch in inner:
+        if ch == '(':
+            balance += 1
+            current.append(ch)
+        elif ch == ')':
+            balance -= 1
+            current.append(ch)
+        elif ch == ',' and balance == 0:
+            args.append(''.join(current).strip())
+            current = []
+        else:
+            current.append(ch)
+    if current:
+        args.append(''.join(current).strip())
+    return args
+
+def _get_cell_formula(cell_ref: str) -> Optional[str]:
+    """从单元格地址获取其公式字符串（若单元格为空或非公式则返回 None）。"""
+    try:
+        from pyxll import xl_app
+        app = xl_app()
+        if '!' in cell_ref:
+            sheet_name, addr = cell_ref.split('!', 1)
+            rng = app.ActiveWorkbook.Worksheets(sheet_name).Range(addr)
+        else:
+            rng = app.ActiveSheet.Range(cell_ref)
+        formula = rng.Formula
+        if formula and isinstance(formula, str) and formula.startswith('='):
+            return formula
+    except Exception:
+        pass
+    return None
+
+def _resolve_distribution_formula(arg_str: str) -> str:
+    """
+    将参数原始字符串解析为分布公式字符串。
+    支持：
+        - 已经是公式字符串（以 '=' 开头）
+        - 单元格引用（如 C16, Sheet2!A1）
+        - 数值常量（直接返回，但 Compound/Splice 通常需要公式）
+    """
+    arg = arg_str.strip()
+    if not arg:
+        return ""
+    if arg.startswith('='):
+        return arg
+    # 单元格引用匹配
+    cell_pattern = re.compile(r'^([A-Za-z]+!\$?[A-Z]+[$]?\d+|\$?[A-Z]+[$]?\d+)$', re.IGNORECASE)
+    if cell_pattern.match(arg):
+        formula = _get_cell_formula(arg)
+        if formula:
+            return formula
+    # 数值常量或其他，直接返回原字符串
+    return arg
+
+def _resolve_distribution_formula(arg_str: str) -> str:
+    arg = arg_str.strip()
+    if not arg:
+        return ""
+
+    # 已经是完整公式（以 '=' 开头）
+    if arg.startswith('='):
+        return arg
+
+    # 处理以 '@' 开头的动态数组公式（如 @DriskLognorm(120,52)）
+    if arg.startswith('@'):
+        # 去掉 @ 后，可能得到 =Drisk... 或直接 Drisk...
+        rest = arg[1:]
+        if rest.startswith('='):
+            return rest
+        else:
+            return '=' + rest
+
+    # 检查是否为单元格引用（如 C16, Sheet2!A1, $A$1 等）
+    cell_pattern = re.compile(r'^([A-Za-z]+!\$?[A-Z]+[$]?\d+|\$?[A-Z]+[$]?\d+)$', re.IGNORECASE)
+    if cell_pattern.match(arg):
+        formula = _get_cell_formula(arg)
+        if formula:
+            return formula
+        # 如果无法获取公式，尝试获取单元格的值作为常数
+        try:
+            from pyxll import xl_app
+            app = xl_app()
+            rng = app.Range(arg) if '!' not in arg else app.ActiveWorkbook.Worksheets(arg.split('!')[0]).Range(arg.split('!')[1])
+            value = rng.Value2
+            if value is not None:
+                # 转换为字符串（数值或文本）
+                return str(value)
+        except:
+            pass
+        # 如果仍然失败，返回原始引用（后续解析会失败，但不会崩溃）
+        return arg
+
+    # 可能是数值常数（如 5, 3.14）
+    try:
+        float(arg)
+        return arg  # 直接返回数值字符串
+    except ValueError:
+        pass
+
+    # 其他情况（可能是分布函数字符串如 DriskPoisson(13.8)）补上 '=' 前缀
+    if arg.startswith('Drisk'):
+        return '=' + arg
+
+    # 最终返回原字符串
+    return arg
+
+def _extract_compound_raw_args_from_formula(formula: str) -> Optional[List[str]]:
+    raw_args = _extract_function_args_from_formula(formula, "DriskCompound")
+    if not raw_args:
+        return None
+    resolved = []
+    for a in raw_args:
+        resolved.append(_resolve_distribution_formula(a))
+    return resolved
+
+def _extract_splice_raw_args_from_formula(formula: str) -> Optional[List[str]]:
+    raw_args = _extract_function_args_from_formula(formula, "DriskSplice")
+    if not raw_args:
+        return None
+    resolved = []
+    for a in raw_args:
+        resolved.append(_resolve_distribution_formula(a))
+    return resolved
 
 def xl_func(signature=None, **kwargs):
-    """对 pyxll.xl_func 做最小包装，只补函数面板文案。"""
+    """
+    对 pyxll.xl_func 做最小包装：自动补充分布函数参数说明。
+    仅影响函数面板注册文案，不改变分布计算逻辑。
+    """
+    # 兼容 @xl_func 直接修饰
     if callable(signature):
         return _pyxll_xl_func(signature)
 
     def _decorator(func):
         local_kwargs = dict(kwargs)
         func_name = getattr(func, "__name__", "")
-        if func_name in DISTRIBUTION_FUNCTION_NAMES:
-            info = get_distribution_info(func_name) or {}
-            # Excel/PyXLL 函数面板有时会在帮助文本末尾自动补一个点，
-            # 这里先去掉源文本末尾标点，避免出现 “。.” 这种双尾巴。
-            auto_help = str(info.get("description", "") or "").strip().rstrip("。. ")
-            if auto_help:
-                func.__doc__ = auto_help
-            if "arg_descriptions" not in local_kwargs:
-                auto_arg_desc = _build_auto_arg_descriptions(func_name, signature)
-                if auto_arg_desc:
-                    local_kwargs["arg_descriptions"] = auto_arg_desc
+        if func_name in DISTRIBUTION_FUNCTION_NAMES and "arg_descriptions" not in local_kwargs:
+            auto_arg_desc = _build_auto_arg_descriptions(func_name, signature)
+            if auto_arg_desc:
+                local_kwargs["arg_descriptions"] = auto_arg_desc
         return _pyxll_xl_func(signature, **local_kwargs)(func)
 
     return _decorator
-
 # 导入属性函数列表，用于识别已知属性函数（避免误判）
 from formula_parser import ATTRIBUTE_FUNCTIONS, parse_complete_formula
 # 导入已有分布生成器
@@ -101,6 +267,8 @@ from dist_lognorm2 import lognorm2_generator_single as lognorm2_generator, logno
 from dist_betageneral import betageneral_generator_single as betageneral_generator, betageneral_cdf, betageneral_ppf, betageneral_raw_mean
 from dist_betasubj import betasubj_generator_single as betasubj_generator, betasubj_cdf, betasubj_ppf, betasubj_raw_mean
 from dist_burr12 import burr12_generator_single as burr12_generator, burr12_cdf, burr12_ppf, burr12_raw_mean
+from dist_compound import compound_generator_single as compound_generator, compound_cdf, compound_ppf, compound_raw_mean
+from dist_splice import splice_generator_single as splice_generator, splice_cdf, splice_ppf, splice_raw_mean
 from dist_pert import pert_generator_single as pert_generator, pert_cdf, pert_ppf, pert_raw_mean
 from dist_reciprocal import reciprocal_generator_single as reciprocal_generator, reciprocal_cdf, reciprocal_ppf, reciprocal_raw_mean
 from dist_rayleigh import rayleigh_generator_single as rayleigh_generator, rayleigh_cdf, rayleigh_ppf, rayleigh_raw_mean
@@ -155,6 +323,8 @@ from dist_lognorm2 import Lognorm2Distribution
 from dist_betageneral import BetaGeneralDistribution
 from dist_betasubj import BetaSubjDistribution
 from dist_burr12 import Burr12Distribution
+from dist_compound import CompoundDistribution
+from dist_splice import SpliceDistribution
 from dist_pert import PertDistribution
 from dist_reciprocal import ReciprocalDistribution
 from dist_rayleigh import RayleighDistribution
@@ -584,6 +754,8 @@ class DistributionGenerator:
         'betageneral': BetaGeneralDistribution,
         'betasubj': BetaSubjDistribution,
         'burr12': Burr12Distribution,
+        'compound': CompoundDistribution,
+        'splice': SpliceDistribution,
         'pert': PertDistribution,
         'reciprocal': ReciprocalDistribution,
         'rayleigh': RayleighDistribution,
@@ -1072,6 +1244,10 @@ class DistributionGenerator:
             return lambda rng, params: betasubj_generator(rng, params)
         elif dist_type == 'burr12':
             return lambda rng, params: burr12_generator(rng, params)
+        elif dist_type == 'compound':
+            return lambda rng, params: compound_generator(rng, params)
+        elif dist_type == 'splice':
+            return lambda rng, params: splice_generator(rng, params)
         elif dist_type == 'pert':
             return lambda rng, params: pert_generator(rng, params)
         elif dist_type == 'reciprocal':
@@ -1401,6 +1577,17 @@ class DistributionGenerator:
             elif dist_type == 'burr12':
                 gamma, beta, alpha1, alpha2 = dist_params[0], dist_params[1], dist_params[2], dist_params[3]
                 return lambda q: burr12_ppf(q, gamma, beta, alpha1, alpha2)
+            elif dist_type == 'compound':
+                frequency_formula = dist_params[0]
+                severity_formula = dist_params[1]
+                deductible = dist_params[2] if len(dist_params) >= 3 else 0.0
+                limit = dist_params[3] if len(dist_params) >= 4 else float("inf")
+                return lambda q: compound_ppf(q, frequency_formula, severity_formula, deductible, limit)
+            elif dist_type == 'splice':
+                left_formula = dist_params[0]
+                right_formula = dist_params[1]
+                splice_point = dist_params[2]
+                return lambda q: splice_ppf(q, left_formula, right_formula, splice_point)
             elif dist_type == 'pert':
                 min_val, m_likely, max_val = dist_params[0], dist_params[1], dist_params[2]
                 return lambda q: pert_ppf(q, min_val, m_likely, max_val)
@@ -1559,6 +1746,12 @@ class DistributionGenerator:
                 return betasubj_cdf(value, dist_params[0], dist_params[1], dist_params[2], dist_params[3])
             elif dist_type == 'burr12':
                 return burr12_cdf(value, dist_params[0], dist_params[1], dist_params[2], dist_params[3])
+            elif dist_type == 'compound':
+                deductible = dist_params[2] if len(dist_params) >= 3 else 0.0
+                limit = dist_params[3] if len(dist_params) >= 4 else float("inf")
+                return compound_cdf(value, dist_params[0], dist_params[1], deductible, limit)
+            elif dist_type == 'splice':
+                return splice_cdf(value, dist_params[0], dist_params[1], dist_params[2])
             elif dist_type == 'pert':
                 return pert_cdf(value, dist_params[0], dist_params[1], dist_params[2])
             elif dist_type == 'reciprocal':
@@ -1705,6 +1898,10 @@ class DistributionGenerator:
                     loc=float(self.dist_params[0]),
                     scale=float(self.dist_params[1]),
                 )
+            elif self.dist_type == 'compound':
+                return None
+            elif self.dist_type == 'splice':
+                return None
             elif self.dist_type == 'pert':
                 min_val, m_likely, max_val = self.dist_params[0], self.dist_params[1], self.dist_params[2]
                 mean_val = (float(min_val) + 4.0 * float(m_likely) + float(max_val)) / 6.0
@@ -1857,6 +2054,12 @@ class DistributionGenerator:
             return betasubj_raw_mean(params[0], params[1], params[2], params[3])
         elif dist_type == 'burr12':
             return burr12_raw_mean(params[0], params[1], params[2], params[3])
+        elif dist_type == 'compound':
+            deductible = params[2] if len(params) >= 3 else 0.0
+            limit = params[3] if len(params) >= 4 else float("inf")
+            return compound_raw_mean(params[0], params[1], deductible, limit)
+        elif dist_type == 'splice':
+            return splice_raw_mean(params[0], params[1], params[2])
         elif dist_type == 'pert':
             return pert_raw_mean(params[0], params[1], params[2])
         elif dist_type == 'reciprocal':
@@ -1986,243 +2189,367 @@ class DistributionGenerator:
             if self.dist_type in _LOCK_ROUND_INT_DIST_TYPES:
                 value = float(round(value))
             return value
-    def _validate_params(self) -> bool:
-        """验证参数是否有效"""
-        if self.dist_type == 'normal':
-            if len(self.dist_params) >= 2 and self.dist_params[1] <= 0:
+        def _validate_params(self) -> bool:
+            """验证参数是否有效 - 支持边界退化情况"""
+            if self._array_parse_failed:
                 return False
-        elif self.dist_type == 'uniform':
-            if len(self.dist_params) >= 2 and self.dist_params[1] <= self.dist_params[0]:
+
+            dist_type = self.dist_type
+
+            # 二项分布：允许 n=0, p=0, p=1
+            if dist_type == 'binomial':
+                if len(self.dist_params) >= 2:
+                    n = self.dist_params[0]
+                    p = self.dist_params[1]
+                    if n < 0 or not float(n).is_integer():
+                        return False
+                    if p < 0 or p > 1:
+                        return False
+                    return True
                 return False
-        elif self.dist_type == 'gamma':
-            if len(self.dist_params) >= 2 and (self.dist_params[0] <= 0 or self.dist_params[1] <= 0):
+
+            # 泊松分布：允许 lambda = 0
+            if dist_type == 'poisson':
+                if len(self.dist_params) >= 1 and self.dist_params[0] >= 0:
+                    return True
                 return False
-        elif self.dist_type == 'erlang':
-            if len(self.dist_params) >= 2:
-                m = float(self.dist_params[0])
-                beta = float(self.dist_params[1])
-                if m <= 0 or abs(m - round(m)) > 1e-9 or beta <= 0:
+
+            # 负二项分布：允许 s=0, p=1（p=0 仍无效）
+            if dist_type == 'negbin':
+                if len(self.dist_params) >= 2:
+                    s = self.dist_params[0]
+                    p = self.dist_params[1]
+                    if s < 0 or abs(s - round(s)) > 1e-9:
+                        return False
+                    if not (0 < p <= 1):
+                        return False
+                    return True
+                return False
+
+            # 几何分布：允许 p=1（p=0 无效）
+            if dist_type == 'geomet':
+                if len(self.dist_params) >= 1:
+                    p = self.dist_params[0]
+                    if 0 < p <= 1:
+                        return True
                     return False
-        elif self.dist_type == 'poisson':
-            if len(self.dist_params) >= 1 and self.dist_params[0] < 0:
                 return False
-        elif self.dist_type == 'beta':
-            if len(self.dist_params) >= 2 and (self.dist_params[0] <= 0 or self.dist_params[1] <= 0):
+
+            # 均匀分布：允许 min == max
+            if dist_type == 'uniform':
+                if len(self.dist_params) >= 2 and self.dist_params[1] >= self.dist_params[0]:
+                    return True
                 return False
-        elif self.dist_type == 'chisq':
-            if len(self.dist_params) >= 1 and (self.dist_params[0] <= 0 or not self.dist_params[0].is_integer()):
-                return False
-        elif self.dist_type == 'f':
-            if len(self.dist_params) >= 2:
-                if self.dist_params[0] <= 0 or self.dist_params[1] <= 0:
+
+            # 直方图分布：允许 min == max
+            if dist_type == 'histogrm':
+                if len(self.dist_params) >= 3:
+                    min_val = self.dist_params[0]
+                    max_val = self.dist_params[1]
+                    if min_val <= max_val and self.p_vals_list is not None:
+                        return True
                     return False
-                if not self.dist_params[0].is_integer() or not self.dist_params[1].is_integer():
+                return False
+
+            # 一般分布：允许 min == max，允许内部 X 点等于边界
+            if dist_type == 'general':
+                if len(self.dist_params) >= 4:
+                    min_val = self.dist_params[0]
+                    max_val = self.dist_params[1]
+                    if min_val <= max_val and self.x_vals_list is not None and self.p_vals_list is not None:
+                        return True
                     return False
-        elif self.dist_type == 'student':
-            if len(self.dist_params) >= 1:
-                if self.dist_params[0] <= 0 or not self.dist_params[0].is_integer():
+                return False
+
+            # 三角分布：允许 a <= c <= b（包括相等）
+            if dist_type == 'triang':
+                if len(self.dist_params) >= 3:
+                    a, c, b = self.dist_params[0], self.dist_params[1], self.dist_params[2]
+                    if a <= c <= b:
+                        return True
                     return False
-        elif self.dist_type == 'cauchy':
-            if len(self.dist_params) >= 2 and self.dist_params[1] <= 0:
                 return False
-        elif self.dist_type == 'erf':
-            if len(self.dist_params) >= 1 and self.dist_params[0] <= 0:
-                return False
-        elif self.dist_type == 'dagum':
-            if len(self.dist_params) >= 4:
-                if self.dist_params[1] <= 0 or self.dist_params[2] <= 0 or self.dist_params[3] <= 0:
+
+            # PERT 分布：允许 min <= likely <= max（包括相等）
+            if dist_type == 'pert':
+                if len(self.dist_params) >= 3:
+                    min_val, m_likely, max_val = self.dist_params[0], self.dist_params[1], self.dist_params[2]
+                    if min_val <= m_likely <= max_val:
+                        return True
                     return False
-        elif self.dist_type == 'doubletriang':
-            if len(self.dist_params) >= 4:
-                if not (self.dist_params[0] < self.dist_params[1] < self.dist_params[2]):
+                return False
+
+            # ========== 以下为其他分布的原有验证逻辑（未作改动） ==========
+            if dist_type == 'normal':
+                if len(self.dist_params) >= 2 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'gamma':
+                if len(self.dist_params) >= 2 and self.dist_params[0] > 0 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'erlang':
+                if len(self.dist_params) >= 2:
+                    m = float(self.dist_params[0])
+                    beta = float(self.dist_params[1])
+                    if m > 0 and abs(m - round(m)) <= 1e-9 and beta > 0:
+                        return True
                     return False
-                if self.dist_params[3] < 0 or self.dist_params[3] > 1:
+                return False
+
+            if dist_type == 'beta':
+                if len(self.dist_params) >= 2 and self.dist_params[0] > 0 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'chisq':
+                if len(self.dist_params) >= 1 and self.dist_params[0] > 0 and self.dist_params[0].is_integer():
+                    return True
+                return False
+
+            if dist_type == 'f':
+                if len(self.dist_params) >= 2:
+                    if self.dist_params[0] > 0 and self.dist_params[1] > 0:
+                        if self.dist_params[0].is_integer() and self.dist_params[1].is_integer():
+                            return True
                     return False
-        elif self.dist_type == 'extvalue':
-            if len(self.dist_params) >= 2 and self.dist_params[1] <= 0:
                 return False
-        elif self.dist_type == 'extvaluemin':
-            if len(self.dist_params) >= 2 and self.dist_params[1] <= 0:
+
+            if dist_type == 'student':
+                if len(self.dist_params) >= 1 and self.dist_params[0] > 0 and self.dist_params[0].is_integer():
+                    return True
                 return False
-        elif self.dist_type == 'fatiguelife':
-            if len(self.dist_params) >= 3 and (self.dist_params[1] <= 0 or self.dist_params[2] <= 0):
+
+            if dist_type == 'expon':
+                if len(self.dist_params) >= 1 and self.dist_params[0] > 0:
+                    return True
                 return False
-        elif self.dist_type == 'frechet':
-            if len(self.dist_params) >= 3 and (self.dist_params[1] <= 0 or self.dist_params[2] <= 0):
+
+            if dist_type == 'bernoulli':
+                if len(self.dist_params) >= 1 and 0 <= self.dist_params[0] <= 1:
+                    return True
                 return False
-        elif self.dist_type == 'hypsecant':
-            if len(self.dist_params) >= 2 and self.dist_params[1] <= 0:
+
+            if dist_type == 'cauchy':
+                if len(self.dist_params) >= 2 and self.dist_params[1] > 0:
+                    return True
                 return False
-        elif self.dist_type == 'johnsonsb':
-            if len(self.dist_params) >= 4 and (self.dist_params[1] <= 0 or self.dist_params[3] <= self.dist_params[2]):
+
+            if dist_type == 'erf':
+                if len(self.dist_params) >= 1 and self.dist_params[0] > 0:
+                    return True
                 return False
-        elif self.dist_type == 'johnsonsu':
-            if len(self.dist_params) >= 4 and (self.dist_params[1] <= 0 or self.dist_params[3] <= 0):
-                return False
-        elif self.dist_type == 'kumaraswamy':
-            if len(self.dist_params) >= 4 and (
-                self.dist_params[0] <= 0
-                or self.dist_params[1] <= 0
-                or self.dist_params[3] <= self.dist_params[2]
-            ):
-                return False
-        elif self.dist_type == 'laplace':
-            if len(self.dist_params) >= 2 and self.dist_params[1] <= 0:
-                return False
-        elif self.dist_type == 'logistic':
-            if len(self.dist_params) >= 2 and self.dist_params[1] <= 0:
-                return False
-        elif self.dist_type == 'loglogistic':
-            if len(self.dist_params) >= 3 and (self.dist_params[1] <= 0 or self.dist_params[2] <= 0):
-                return False
-        elif self.dist_type == 'lognorm':
-            if len(self.dist_params) >= 2 and (self.dist_params[0] <= 0 or self.dist_params[1] <= 0):
-                return False
-        elif self.dist_type == 'lognorm2':
-            if len(self.dist_params) >= 2 and self.dist_params[1] <= 0:
-                return False
-        elif self.dist_type == 'betageneral':
-            if len(self.dist_params) >= 4:
-                if (
-                    self.dist_params[0] <= 0
-                    or self.dist_params[1] <= 0
-                    or self.dist_params[3] <= self.dist_params[2]
-                ):
+
+            if dist_type == 'dagum':
+                if len(self.dist_params) >= 4:
+                    if self.dist_params[1] > 0 and self.dist_params[2] > 0 and self.dist_params[3] > 0:
+                        return True
                     return False
-            else:
                 return False
-        elif self.dist_type == 'betasubj':
-            if len(self.dist_params) >= 4:
-                if (
-                    self.dist_params[3] <= self.dist_params[0]
-                    or self.dist_params[1] <= self.dist_params[0]
-                    or self.dist_params[1] >= self.dist_params[3]
-                    or self.dist_params[2] <= self.dist_params[0]
-                    or self.dist_params[2] >= self.dist_params[3]
-                ):
+
+            if dist_type == 'doubletriang':
+                if len(self.dist_params) >= 4:
+                    if (self.dist_params[0] < self.dist_params[1] < self.dist_params[2]) and (0 <= self.dist_params[3] <= 1):
+                        return True
                     return False
-            else:
                 return False
-        elif self.dist_type == 'burr12':
-            if len(self.dist_params) >= 4:
-                if (
-                    self.dist_params[1] <= 0
-                    or self.dist_params[2] <= 0
-                    or self.dist_params[3] <= 0
-                ):
+
+            if dist_type == 'extvalue':
+                if len(self.dist_params) >= 2 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'extvaluemin':
+                if len(self.dist_params) >= 2 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'fatiguelife':
+                if len(self.dist_params) >= 3 and self.dist_params[1] > 0 and self.dist_params[2] > 0:
+                    return True
+                return False
+
+            if dist_type == 'frechet':
+                if len(self.dist_params) >= 3 and self.dist_params[1] > 0 and self.dist_params[2] > 0:
+                    return True
+                return False
+
+            if dist_type == 'hypsecant':
+                if len(self.dist_params) >= 2 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'johnsonsb':
+                if len(self.dist_params) >= 4 and self.dist_params[1] > 0 and self.dist_params[3] > self.dist_params[2]:
+                    return True
+                return False
+
+            if dist_type == 'johnsonsu':
+                if len(self.dist_params) >= 4 and self.dist_params[1] > 0 and self.dist_params[3] > 0:
+                    return True
+                return False
+
+            if dist_type == 'kumaraswamy':
+                if len(self.dist_params) >= 4:
+                    if (self.dist_params[0] > 0 and self.dist_params[1] > 0 and self.dist_params[3] > self.dist_params[2]):
+                        return True
                     return False
-            else:
                 return False
-        elif self.dist_type == 'pert':
-            if len(self.dist_params) >= 3:
-                min_val, m_likely, max_val = self.dist_params[0], self.dist_params[1], self.dist_params[2]
-                if max_val <= min_val or m_likely < min_val or m_likely > max_val:
+
+            if dist_type == 'laplace':
+                if len(self.dist_params) >= 2 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'logistic':
+                if len(self.dist_params) >= 2 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'loglogistic':
+                if len(self.dist_params) >= 3 and self.dist_params[1] > 0 and self.dist_params[2] > 0:
+                    return True
+                return False
+
+            if dist_type == 'lognorm':
+                if len(self.dist_params) >= 2 and self.dist_params[0] > 0 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'lognorm2':
+                if len(self.dist_params) >= 2 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'betageneral':
+                if len(self.dist_params) >= 4:
+                    if (self.dist_params[0] > 0 and self.dist_params[1] > 0 and self.dist_params[3] > self.dist_params[2]):
+                        return True
                     return False
-            else:
                 return False
-        elif self.dist_type == 'reciprocal':
-            if len(self.dist_params) >= 2:
-                if self.dist_params[0] <= 0 or self.dist_params[1] <= self.dist_params[0]:
+
+            if dist_type == 'betasubj':
+                if len(self.dist_params) >= 4:
+                    if (self.dist_params[3] > self.dist_params[0] and
+                        self.dist_params[1] > self.dist_params[0] and
+                        self.dist_params[1] < self.dist_params[3] and
+                        self.dist_params[2] > self.dist_params[0] and
+                        self.dist_params[2] < self.dist_params[3]):
+                        return True
                     return False
-            else:
                 return False
-        elif self.dist_type == 'rayleigh':
-            if len(self.dist_params) >= 1:
-                if self.dist_params[0] <= 0:
+
+            if dist_type == 'burr12':
+                if len(self.dist_params) >= 4:
+                    if (self.dist_params[1] > 0 and self.dist_params[2] > 0 and self.dist_params[3] > 0):
+                        return True
                     return False
-            else:
                 return False
-        elif self.dist_type == 'weibull':
-            if len(self.dist_params) >= 2:
-                if self.dist_params[0] <= 0 or self.dist_params[1] <= 0:
+
+            if dist_type == 'compound':
+                if len(self.dist_params) < 2:
                     return False
-            else:
-                return False
-        elif self.dist_type == 'pearson5':
-            if len(self.dist_params) >= 2 and (self.dist_params[0] <= 0 or self.dist_params[1] <= 0):
-                return False
-        elif self.dist_type == 'pearson6':
-            if len(self.dist_params) >= 3 and (
-                self.dist_params[0] <= 0 or self.dist_params[1] <= 0 or self.dist_params[2] <= 0
-            ):
-                return False
-        elif self.dist_type == 'pareto2':
-            if len(self.dist_params) >= 2 and (self.dist_params[0] <= 0 or self.dist_params[1] <= 0):
-                return False
-        elif self.dist_type == 'pareto':
-            if len(self.dist_params) >= 2 and (self.dist_params[0] <= 0 or self.dist_params[1] <= 0):
-                return False
-        elif self.dist_type == 'levy':
-            if len(self.dist_params) >= 2 and self.dist_params[1] <= 0:
-                return False
-        elif self.dist_type == 'general':
-            if len(self.dist_params) < 4:
-                return False
-            try:
-                if self.x_vals_list is None or self.p_vals_list is None:
+                if not isinstance(self.dist_params[0], str) or not str(self.dist_params[0]).strip():
                     return False
-                general_parse_arrays(float(self.dist_params[0]), float(self.dist_params[1]), self.x_vals_list, self.p_vals_list)
-            except Exception:
-                return False
-        elif self.dist_type == 'histogrm':
-            if len(self.dist_params) < 3:
-                return False
-            try:
-                if float(self.dist_params[1]) <= float(self.dist_params[0]):
+                if not isinstance(self.dist_params[1], str) or not str(self.dist_params[1]).strip():
                     return False
-                if self.p_vals_list is None:
+                try:
+                    deductible = float(self.dist_params[2]) if len(self.dist_params) >= 3 else 0.0
+                    limit = float(self.dist_params[3]) if len(self.dist_params) >= 4 else float("inf")
+                except Exception:
                     return False
-                histogrm_parse_p_table(self.p_vals_list)
-            except Exception:
-                return False
-        elif self.dist_type == 'expon':
-            if len(self.dist_params) >= 1 and self.dist_params[0] <= 0:
-                return False
-        elif self.dist_type == 'bernoulli':
-            if len(self.dist_params) >= 1 and (self.dist_params[0] < 0 or self.dist_params[0] > 1):
-                return False
-        elif self.dist_type == 'triang':
-            if len(self.dist_params) >= 3 and not (self.dist_params[0] <= self.dist_params[1] <= self.dist_params[2]):
-                return False
-        elif self.dist_type == 'binomial':
-            if len(self.dist_params) >= 2:
-                n = self.dist_params[0]
-                p = self.dist_params[1]
-                if n <= 0 or not float(n).is_integer() or p <= 0 or p >= 1:
+                if deductible < 0 or limit < 0:
                     return False
-        elif self.dist_type == 'negbin':
-            if len(self.dist_params) >= 2:
-                s = self.dist_params[0]
-                p = self.dist_params[1]
-                if s <= 0 or abs(float(s) - round(float(s))) > 1e-9 or p <= 0 or p > 1:
+                return True
+
+            if dist_type == 'splice':
+                if len(self.dist_params) < 3:
                     return False
-        elif self.dist_type == 'geomet':
-            if len(self.dist_params) >= 1 and (self.dist_params[0] <= 0 or self.dist_params[0] > 1):
+                if not isinstance(self.dist_params[0], str) or not str(self.dist_params[0]).strip():
+                    return False
+                if not isinstance(self.dist_params[1], str) or not str(self.dist_params[1]).strip():
+                    return False
+                try:
+                    splice_point = float(self.dist_params[2])
+                except Exception:
+                    return False
+                if not math.isfinite(splice_point):
+                    return False
+                return True
+
+            if dist_type == 'reciprocal':
+                if len(self.dist_params) >= 2 and self.dist_params[0] > 0 and self.dist_params[1] > self.dist_params[0]:
+                    return True
                 return False
-        # 其他分布默认视为有效
-        elif self.dist_type == 'hypergeo':
-            if len(self.dist_params) >= 3:
-                n = float(self.dist_params[0])
-                D = float(self.dist_params[1])
-                M = float(self.dist_params[2])
-                if (
-                    n <= 0 or not n.is_integer()
-                    or D <= 0 or not D.is_integer()
-                    or M <= 0 or not M.is_integer()
-                    or n > M or D > M
-                ):
+
+            if dist_type == 'rayleigh':
+                if len(self.dist_params) >= 1 and self.dist_params[0] > 0:
+                    return True
+                return False
+
+            if dist_type == 'weibull':
+                if len(self.dist_params) >= 2 and self.dist_params[0] > 0 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'pearson5':
+                if len(self.dist_params) >= 2 and self.dist_params[0] > 0 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'pearson6':
+                if len(self.dist_params) >= 3 and self.dist_params[0] > 0 and self.dist_params[1] > 0 and self.dist_params[2] > 0:
+                    return True
+                return False
+
+            if dist_type == 'pareto2':
+                if len(self.dist_params) >= 2 and self.dist_params[0] > 0 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'pareto':
+                if len(self.dist_params) >= 2 and self.dist_params[0] > 0 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'levy':
+                if len(self.dist_params) >= 2 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'invgauss':
+                if len(self.dist_params) >= 2 and self.dist_params[0] > 0 and self.dist_params[1] > 0:
+                    return True
+                return False
+
+            if dist_type == 'duniform':
+                if self.x_vals_list is not None and len(self.x_vals_list) > 0:
+                    return True
+                return False
+
+            if dist_type == 'cumul':
+                # 验证由 _parse_cumul_4args 完成，此处仅检查参数数量
+                if len(self.dist_params) >= 4:
+                    return True
+                return False
+
+            if dist_type == 'discrete':
+                if len(self.dist_params) >= 2 and self.x_vals_list is not None and self.p_vals_list is not None:
+                    return True
+                return False
+
+            if dist_type == 'trigen':
+                if len(self.dist_params) >= 5:
+                    L, M, U, alpha, beta = self.dist_params[0], self.dist_params[1], self.dist_params[2], self.dist_params[3], self.dist_params[4]
+                    if L <= M <= U and 0 <= alpha < beta <= 1:
+                        return True
                     return False
-        elif self.dist_type == 'intuniform':
-            if len(self.dist_params) >= 2:
-                min_val = float(self.dist_params[0])
-                max_val = float(self.dist_params[1])
-                if (
-                    abs(min_val - round(min_val)) > 1e-9
-                    or abs(max_val - round(max_val)) > 1e-9
-                    or min_val >= max_val
-                ):
-                    return False
-        return True
+                return False
+
+            # 默认情况（未知分布类型）视为有效
+            return True
 # ==================== 全局常量和辅助函数 ====================
 ERROR_MARKER = "#ERROR!"
 def _is_excel_error(val) -> bool:
@@ -2237,6 +2564,57 @@ def _is_excel_error(val) -> bool:
     # 某些情况下错误值可能是特殊浮点数，但暂不处理
     return False
 
+def _extract_function_args_from_formula_robust(formula: str, func_name: str) -> Optional[List[str]]:
+    """
+    从任意 Excel 公式中提取指定函数的参数列表。
+    支持前缀表达式、嵌套函数、单元格引用等。
+    返回参数原始字符串列表，失败返回 None。
+    """
+    if not isinstance(formula, str) or not formula.strip():
+        return None
+
+    # 不区分大小写匹配函数名及其左括号
+    pattern = re.compile(rf'\b{re.escape(func_name)}\s*\(', re.IGNORECASE)
+    match = pattern.search(formula)
+    if not match:
+        return None
+
+    start = match.end() - 1  # '(' 的位置
+    # 括号匹配
+    balance = 1
+    i = start + 1
+    n = len(formula)
+    while i < n and balance > 0:
+        ch = formula[i]
+        if ch == '(':
+            balance += 1
+        elif ch == ')':
+            balance -= 1
+        i += 1
+    if balance != 0:
+        return None
+
+    inner = formula[start+1:i-1]  # 括号内的原始内容
+
+    # 按逗号分割参数，忽略括号内的逗号
+    args = []
+    current = []
+    balance = 0
+    for ch in inner:
+        if ch == '(':
+            balance += 1
+            current.append(ch)
+        elif ch == ')':
+            balance -= 1
+            current.append(ch)
+        elif ch == ',' and balance == 0:
+            args.append(''.join(current).strip())
+            current = []
+        else:
+            current.append(ch)
+    if current:
+        args.append(''.join(current).strip())
+    return args
 
 def _convert_attribute_call_string(arg_text: str):
     """将嵌套公式里的属性函数字符串转换为内部 marker。"""
@@ -2438,7 +2816,8 @@ def parse_parameters(*args) -> Tuple[List[float], Dict[str, Any]]:
     return dist_params, markers
 def create_distribution_generator(func_name: str, dist_type: str, dist_params: List[float], markers: Dict[str, Any]) -> DistributionGenerator:
     return DistributionGenerator(func_name, dist_type, dist_params, markers)
-# ==================== 增强的 Compound / Splice 参数提取（支持前缀/后缀、单元格引用） ====================
+
+
 def _get_formula_from_caller() -> Optional[str]:
     try:
         app = xl_app()
@@ -2450,112 +2829,31 @@ def _get_formula_from_caller() -> Optional[str]:
     except Exception:
         pass
     return None
-def _extract_function_args_from_formula(formula: str, func_name: str) -> Optional[List[str]]:
-    """
-    从 Excel 公式字符串中提取指定函数的参数列表。
-    支持函数调用前后有其他表达式（如 DriskOutput() + DriskCompound(...)）。
-    """
-    if not isinstance(formula, str) or not formula.strip():
-        return None
-    # 不区分大小写匹配函数名
-    pattern = re.compile(rf'\b{re.escape(func_name)}\s*\(', re.IGNORECASE)
-    match = pattern.search(formula)
-    if not match:
-        return None
-    start = match.end() - 1  # '(' 的位置
-    # 括号匹配
-    balance = 1
-    i = start + 1
-    while i < len(formula) and balance > 0:
-        if formula[i] == '(':
-            balance += 1
-        elif formula[i] == ')':
-            balance -= 1
-        i += 1
-    if balance != 0:
-        return None
-    inner = formula[start+1:i-1]   # 括号内的原始内容
-    # 按逗号分割参数，忽略括号内的逗号
-    args = []
-    current = []
-    balance = 0
-    for ch in inner:
-        if ch == '(':
-            balance += 1
-            current.append(ch)
-        elif ch == ')':
-            balance -= 1
-            current.append(ch)
-        elif ch == ',' and balance == 0:
-            args.append(''.join(current).strip())
-            current = []
-        else:
-            current.append(ch)
-    if current:
-        args.append(''.join(current).strip())
-    return args
-
-def _get_cell_formula(cell_ref: str) -> Optional[str]:
-    """从单元格地址获取其公式字符串（若单元格为空或非公式则返回 None）。"""
-    try:
-        from pyxll import xl_app
-        app = xl_app()
-        # 解析单元格地址，支持跨工作表（如 Sheet1!A1）
-        if '!' in cell_ref:
-            sheet_name, addr = cell_ref.split('!', 1)
-            rng = app.ActiveWorkbook.Worksheets(sheet_name).Range(addr)
-        else:
-            rng = app.ActiveSheet.Range(cell_ref)
-        formula = rng.Formula
-        if formula and isinstance(formula, str) and formula.startswith('='):
-            return formula
-    except Exception:
-        pass
-    return None
-
-def _resolve_distribution_formula(arg_str: str) -> str:
-    """
-    将参数原始字符串解析为分布公式字符串。
-    支持：
-        - 已经是公式字符串（以 '=' 开头）
-        - 单元格引用（如 C16, Sheet2!A1）
-        - 数值常量（直接返回，但 Compound/Splice 通常需要公式）
-    """
-    arg = arg_str.strip()
-    if not arg:
-        return ""
-    # 已经是公式
-    if arg.startswith('='):
-        return arg
-    # 可能是单元格引用
-    # 简单正则：字母+数字 或 带工作表名的引用
-    cell_pattern = re.compile(r'^([A-Za-z]+!\$?[A-Z]+[$]?\d+|\$?[A-Z]+[$]?\d+)$', re.IGNORECASE)
-    if cell_pattern.match(arg):
-        formula = _get_cell_formula(arg)
-        if formula:
-            return formula
-    # 其他情况（数值常量）—— 直接返回原字符串，后续解析可能失败，但不影响整体流程
-    return arg
 
 def _extract_compound_raw_args_from_formula(formula: str) -> Optional[List[str]]:
-    """增强版：从公式中提取 DriskCompound 的参数，并解析单元格引用为公式字符串。"""
-    raw_args = _extract_function_args_from_formula(formula, "DriskCompound")
-    if not raw_args:
+    # 优先使用稳健提取器
+    raw_args = _extract_function_args_from_formula_robust(formula, "DriskCompound")
+    if raw_args is None:
+        # 回退到旧方法（兼容性）
+        raw_args = _extract_function_args_from_formula(formula, "DriskCompound")
+    if raw_args is None:
         return None
-    # 解析每个参数：如果是单元格引用，读取其公式
+
     resolved = []
-    for a in raw_args:
-        resolved.append(_resolve_distribution_formula(a))
+    for arg in raw_args:
+        resolved.append(_resolve_distribution_formula(arg))
     return resolved
 
 def _extract_splice_raw_args_from_formula(formula: str) -> Optional[List[str]]:
-    """增强版：从公式中提取 DriskSplice 的参数，并解析单元格引用为公式字符串。"""
-    raw_args = _extract_function_args_from_formula(formula, "DriskSplice")
-    if not raw_args:
+    raw_args = _extract_function_args_from_formula_robust(formula, "DriskSplice")
+    if raw_args is None:
+        raw_args = _extract_function_args_from_formula(formula, "DriskSplice")
+    if raw_args is None:
         return None
+
     resolved = []
-    for a in raw_args:
-        resolved.append(_resolve_distribution_formula(a))
+    for arg in raw_args:
+        resolved.append(_resolve_distribution_formula(arg))
     return resolved
 
 def _compound_distribution_function_with_simulation(*args):
@@ -2565,9 +2863,7 @@ def _compound_distribution_function_with_simulation(*args):
         if caller_formula:
             raw_args = _extract_compound_raw_args_from_formula(caller_formula)
 
-        # 如果从公式中提取失败，尝试直接使用传入的 args（兜底，但通常不会成功）
         if not raw_args or len(raw_args) < 2:
-            # 此时 args 可能是计算后的值，无法恢复分布，返回错误
             print("DriskCompound: 无法从公式中提取参数，请确保调用格式正确")
             return ERROR_MARKER
 
@@ -2636,7 +2932,7 @@ def _compound_distribution_function_with_simulation(*args):
         import traceback
         traceback.print_exc()
         return ERROR_MARKER
-
+    
 def _splice_distribution_function_with_simulation(*args):
     try:
         raw_args = None
@@ -2711,7 +3007,8 @@ def _splice_distribution_function_with_simulation(*args):
         import traceback
         traceback.print_exc()
         return ERROR_MARKER
-# ==================== 通用分布函数实现（支持模拟模式） ====================
+
+
 def _generic_distribution_function_with_simulation(func_name: str, *args):
     try:
         dist_params, markers = parse_parameters(*args)
@@ -3186,242 +3483,241 @@ def _generic_distribution_function_with_simulation(func_name: str, *args):
         traceback.print_exc()
         return ERROR_MARKER
 # ==================== 分布函数定义（使用新架构） ====================
-@xl_func("var Frequency, var Severity, var Deductible, var Limit, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
-def DriskCompound(frequency, severity, deductible=None, limit=None, *args):
-    return _compound_distribution_function_with_simulation(frequency, severity, deductible, limit, *args)
-@xl_func("var Dist#1, var Dist#2, var Splice_point, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
-def DriskSplice(left_dist, right_dist, splice_point, *args):
-    return _splice_distribution_function_with_simulation(left_dist, right_dist, splice_point, *args)
-
-@xl_func("var Mean, var Std._Dev., var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
-def DriskNormal(Mean,Std_Dev,*args):
-    
-    return _generic_distribution_function_with_simulation("DriskNormal", Mean,Std_Dev, *args)
+@xl_func("var Mean, var Std_Dev, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+def DriskNormal(Mean, Std_Dev, *args):
+    """
+    定义一个经典的“钟形曲线”正态分布，广泛适用于描述大量数据集的统计分布特征
+    """
+    # Mean：是分布的均值。Std._Dev.：是分布的标准差，必须大于0。
+    return _generic_distribution_function_with_simulation("DriskNormal", Mean, Std_Dev, *args)
 @xl_func("var Minimum, var Maximum, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskUniform(Minimum, Maximum, *args):
+    """
+   定义一个均匀概率分布。在均匀分布的取值范围内，每个值出现的可能性都是相等的
+    """
+    # Minimum：最小值。Maximum：最大值。
     return _generic_distribution_function_with_simulation("DriskUniform", Minimum, Maximum, *args)
-@xl_func("var H, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var h, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskErf(h, *args):
-    """误差函数分布，用于模拟对称、无界且尺度可控的连续随机变量。"""
+    """定义一个具有方差参数H的Gauss Error函数，该分布派生自Normal分布"""
     return _generic_distribution_function_with_simulation("DriskErf", h, *args)
-@xl_func("var A, var B, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var a, var b, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskExtvalue(a, b, *args):
-    """\u6781\u503cI\u578b\u5206\u5e03\uff08\u6700\u5927\u503c\uff09\uff0c\u4e5f\u79f0Gumbel I\u578b\u5206\u5e03\uff0c\u7528\u4e8e\u5efa\u6a21\u53f3\u5c3e\u6781\u7aef\u60c5\u5f62\u3002"""
+    """定义一个Extvalue分布"""
     return _generic_distribution_function_with_simulation("DriskExtvalue", a, b, *args)
-@xl_func("var A, var B, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20,	var*:	var", volatile=True)
+@xl_func("var a, var b, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20,	var*:	var", volatile=True)
 def DriskExtvalueMin(a, b, *args):
-    """\u6781\u503cI\u578b\u5206\u5e03\uff08\u6700\u5c0f\u503c\uff09\uff0c\u4e5f\u79f0Gumbel II\u578b\u5206\u5e03\uff0c\u7528\u4e8e\u5efa\u6a21\u5de6\u5c3e\u6781\u7aef\u60c5\u5f62\u3002"""
+    """定义一个ExtvalueMin分布"""
     return _generic_distribution_function_with_simulation("DriskExtvalueMin", a, b, *args)
-@xl_func("var Gamma, var Beta, var Alpha, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属 性10, var 属 性11, var 属 性12, var 属 性13, var 属 性14, var 属 性15, var 属 性16, var 属 性17, var 属 性18, var 属 性19, var 属 性20,	var*:	var", volatile=True)
+@xl_func("var y, var beta, var alpha, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属 性10, var 属 性11, var 属 性12, var 属 性13, var 属 性14, var 属 性15, var 属 性16, var 属 性17, var 属 性18, var 属 性19, var 属 性20,	var*:	var", volatile=True)
 def DriskFatigueLife(y, beta, alpha, *args):
-    """定义一个FatigueLife分布。"""
+    """定义一个FatigueLife分布"""
     return _generic_distribution_function_with_simulation("DriskFatigueLife", y, beta, alpha, *args)
-@xl_func("var Gamma, var Beta, var Alpha, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20,	var*:	var", volatile=True)
+@xl_func("var y, var beta, var alpha, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20,	var*:	var", volatile=True)
 def DriskFrechet(y, beta, alpha, *args):
-    """定义一个Frechet分布。"""
+    """定义一个Frechet分布"""
     return _generic_distribution_function_with_simulation("DriskFrechet", y, beta, alpha, *args)
     
-@xl_func("var Gamma, var Beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var gamma, var beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 
 def DriskHypSecant(gamma, beta, *args):
-    """\u53cc\u66f2\u6b63\u5272\u5206\u5e03\uff0c\u7c7b\u4f3c\u4e8e\u6b63\u6001\u5206\u5e03\uff0c\u4f46\u5177\u6709\u66f4\u5c16\u9510\u7684\u5cf0\u6001\uff0c\u5e38\u7528\u4e8e\u91d1\u878d\u6536\u76ca\u7387\u6570\u636e\u7684\u5efa\u6a21\u5206\u6790\u3002"""
+    """定义一个HypSecant分布"""
     return _generic_distribution_function_with_simulation("DriskHypSecant", gamma, beta, *args)
     # 双曲正割分布：无界对称，峰态更尖，常用于收益率等重峰场景建模。
    
-@xl_func("var Alpha_1, var Alpha_2, var Gamma, var Beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var alpha1, var alpha2, var gamma, var beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskJohnsonSU(alpha1, alpha2, gamma, beta, *args):
-    """\u65e0\u754c Johnson SU \u5206\u5e03\uff0c\u7528\u4e8e\u5efa\u6a21\u504f\u6001\u3001\u53ef\u53d6\u8d1f\u503c\u7684\u8fde\u7eed\u53d8\u91cf\u3002"""
+    """定义一个JohnsonSU（系统无界）分布"""
     # JohnsonSU分布：连续、无界，适合专家意见建模和成本分析等场景。
     return _generic_distribution_function_with_simulation("DriskJohnsonSU", alpha1, alpha2, gamma, beta, *args)
 
-@xl_func("var Alpha_1, var Alpha_2, var A, var B, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var alpha1, var alpha2, var a, var b, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskJohnsonSB(alpha1, alpha2, a, b, *args):
-    """\u6709\u754c Johnson SB \u5206\u5e03\uff0c\u7528\u4e8e\u5728[a,b]\u533a\u95f4\u5185\u5efa\u6a21\u504f\u6001\u8fde\u7eed\u53d8\u91cf\u3002"""
-    # JohnsonSB分布：有界、可偏态，适合在[a,b]区间内建模连续变量。
+    """定义一个JohnsonSB（系统有界）分布"""
     return _generic_distribution_function_with_simulation("DriskJohnsonSB", alpha1, alpha2, a, b, *args)
-@xl_func("var Alpha_1, var Alpha_2, var Minimum, var Maximum, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var alpha1, var alpha2, var min_val, var max_val, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskKumaraswamy(alpha1, alpha2, min_val, max_val, *args):
-    "Kumaraswamy分布：连续、有界，适合在[Min, Max]区间内建模有界连续变量。"
+    """定义一个4参数Kumaraswamy分布"""
     return _generic_distribution_function_with_simulation("DriskKumaraswamy", alpha1, alpha2, min_val, max_val, *args)
-@xl_func("var Mean, var Std._Dev., var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var mu, var sigma, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskLaplace(mu, sigma, *args):
-    """\u62c9\u666e\u62c9\u65af\u5206\u5e03\uff0c\u53c8\u79f0\u53cc\u6307\u6570\u5206\u5e03\uff0c\u9002\u5408\u5efa\u6a21\u5bf9\u79f0\u4e14\u6bd4\u6b63\u6001\u66f4\u5c16\u5cf0\u7684\u8fde\u7eed\u53d8\u91cf\u3002"""
-    # Laplace分布，又称双指数分布，适合建模对称并且比正态更尖峰的连续变量。
+    """定义一个Laplace分布"""
     return _generic_distribution_function_with_simulation("DriskLaplace", mu, sigma, *args)
 
-@xl_func("var A, var C , var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var a, var c, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskLevy(a, c, *args):
-    """Levy\u5206\u5e03\uff0c\u7528\u4e8e\u5efa\u6a21\u5de6\u7aef\u6709\u754c\u3001\u53f3\u504f\u539a\u5c3e\u7684\u8fde\u7eed\u53d8\u91cf\u3002"""
+    """定义一个Levy分布"""
     # Levy分布，用于建模左端有界、右偏厚尾的连续变量。
     return _generic_distribution_function_with_simulation("DriskLevy", a, c, *args)
 
-@xl_func("var Alpha, var Beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var alpha, var beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskLogistic(alpha, beta, *args):
-    """Logistic\u5206\u5e03\uff0c\u7528\u4e8e\u5efa\u6a21\u5c3e\u90e8\u6bd4\u6b63\u6001\u66f4\u91cd\u7684\u5bf9\u79f0\u8fde\u7eed\u53d8\u91cf\u3002"""
-    # Logistic分布，用于建模尾部比正态更重的对称连续变量。
+    """定义一个Logistic分布"""
     return _generic_distribution_function_with_simulation("DriskLogistic", alpha, beta, *args)
 
-@xl_func("var Gamma, var Beta, var Alpha, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var gamma, var beta, var alpha, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskLoglogistic(gamma, beta, alpha, *args):
-    """Loglogistic\u5206\u5e03\uff0c\u7528\u4e8e\u5efa\u6a21\u5de6\u7aef\u6709\u754c\u3001\u53f3\u504f\u539a\u5c3e\u7684\u8fde\u7eed\u53d8\u91cf\u3002"""
-    # Loglogistic分布，用于建模左端有界、右偏厚尾的连续变量。
+    """定义一个Loglogistic分布"""
     return _generic_distribution_function_with_simulation("DriskLoglogistic", gamma, beta, alpha, *args)
 
-@xl_func("var Mean, var Std._Dev., var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var mu, var sigma, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskLognorm(mu, sigma, *args):
-    """Lognorm\u5206\u5e03\uff0c\u7528\u4e8e\u5efa\u6a21\u5de6\u7aef\u6709\u754c\u7684\u8fde\u7eed\u6b63\u503c\u53d8\u91cf\u3002"""
-    # Lognorm分布，用于建模左端有界的连续正值变量。
+    """定义一种对数正态分布，这种形式的对数正态分布的参数为该概率分布的实际均值和标准差"""
     return _generic_distribution_function_with_simulation("DriskLognorm", mu, sigma, *args)
-@xl_func("var Mean, var Std._Dev., var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var mu, var sigma, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskLognorm2(mu, sigma, *args):
-    """Lognorm2\u5206\u5e03\uff0c\u7528\u4e8e\u5efa\u6a21\u5de6\u7aef\u6709\u754c\u7684\u8fde\u7eed\u6b63\u503c\u53d8\u91cf\u3002"""
-    # Lognorm2分布，参数为底层正态分布的均值和标准差。
+    """指定一种对数正态分布，其中输入的均值和标准差等于相应正态分布的均值和标准差"""
     return _generic_distribution_function_with_simulation("DriskLognorm2", mu, sigma, *args)
-@xl_func("var Theta, var A, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var theta, var alpha, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskPareto(theta, alpha, *args):
-    """Pareto\u5206\u5e03\uff0c\u7528\u4e8e\u5efa\u6a21\u5de6\u7aef\u6709\u754c\u3001\u53f3\u504f\u539a\u5c3e\u7684\u8fde\u7eed\u53d8\u91cf\u3002"""
-    # Pareto分布，用于建模左端有界、右偏厚尾的连续变量。
+    """定义一个Pareto分布"""
     return _generic_distribution_function_with_simulation("DriskPareto", theta, alpha, *args)
-@xl_func("var B, var Q, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
+@xl_func("var b, var q, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
 def DriskPareto2(b, q, *args):
-    """Pareto2\u5206\u5e03\uff0c\u53c2\u6570\u987a\u5e8f\u4e3a b, q\uff0c\u5176\u4e2d b \u4e3a\u5c3a\u5ea6\u53c2\u6570\uff0cq \u4e3a\u5f62\u72b6\u53c2\u6570\uff0c\u7528\u4e8e\u5efa\u6a21\u5de6\u7aef\u6709\u754c\u3001\u53f3\u504f\u539a\u5c3e\u7684\u8fde\u7eed\u53d8\u91cf\u3002"""
+    """定义一个Pareto2分布"""
     return _generic_distribution_function_with_simulation("DriskPareto2", b, q, *args)
 @xl_func(
-    "var Alpha, var Beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
+    "var alpha, var beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
 def DriskPearson5(alpha, beta, *args):
-    """Pearson5\u5206\u5e03\uff0c\u53c2\u6570\u987a\u5e8f\u4e3a alpha, beta\uff0c\u5176\u4e2d alpha \u4e3a\u5f62\u72b6\u53c2\u6570\uff0cbeta \u4e3a\u5c3a\u5ea6\u53c2\u6570\uff0c\u7528\u4e8e\u5efa\u6a21\u5de6\u7aef\u6709\u754c\u3001\u53f3\u504f\u7684\u8fde\u7eed\u53d8\u91cf\u3002"""
-    # Pearson5 分布。参数顺序必须固定为 alpha, beta：alpha 是形状参数，必须大于 0；beta 是尺度参数，必须大于 0。原始支持集为 [0, +∞)，truncate / truncatep / truncate2 / truncatep2；都应统一走 Pearson5 的同一套口径，不要改成别的 inverse-gamma 参数顺序。
+    """定义一个Pearson5分布"""
     return _generic_distribution_function_with_simulation("DriskPearson5", alpha, beta, *args)
 @xl_func(
-    "var Alpha_1, var Alpha_2, var Beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
+    "var alpha1, var alpha2, var beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
 def DriskPearson6(alpha1, alpha2, beta, *args):
-    """Pearson6\u5206\u5e03\uff0c\u53c2\u6570\u987a\u5e8f\u56fa\u5b9a\u4e3a alpha1\u3001alpha2\u3001beta\uff0c\u5176\u4e2d alpha1 \u548c alpha2 \u4e3a\u5f62\u72b6\u53c2\u6570\uff0cbeta \u4e3a\u5c3a\u5ea6\u53c2\u6570\uff0c\u7528\u4e8e\u5efa\u6a21\u5de6\u7aef\u6709\u754c\u3001\u53f3\u504f\u7684\u8fde\u7eed\u53d8\u91cf\u3002"""
-    # Pearson6 分布。参数顺序必须固定为 alpha1, alpha2, beta：alpha1 是第一个形状参数，必须大于 0；alpha2 是第二个形状参数，必须大于 0；beta 是尺度参数，必须大于 0。原始支持集为 [0, +∞)。truncate / truncatep / truncate2 / truncatep2都必须统一走 Pearson6 自己的 PPF 截断口径，不能掉回默认分布，也不要套错到 F、BetaPrime 或别的分布参数顺序。
+    """定义一个Pearson6分布"""
     return _generic_distribution_function_with_simulation("DriskPearson6", alpha1, alpha2, beta, *args)
-@xl_func("var Minimum, var Most_Likely, var Maximum, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
+@xl_func("var min_val, var m_likely, var max_val, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
 def DriskPert(min_val, m_likely, max_val, *args):
-    """Pert\u5206\u5e03\uff0c\u53c2\u6570\u987a\u5e8f\u56fa\u5b9a\u4e3a Min\u3001M.likely\u3001Max\uff0c\u7528\u4e8e\u5efa\u6a21\u53cc\u8fb9\u754c\u7ea6\u675f\u7684\u8fde\u7eed\u53d8\u91cf\u3002"""
-    # Pert 分布。参数顺序必须固定为 Min, M.likely, Max：Min 是最小值，必须小于 Max；M.likely 是最可能值，必须落在 [Min, Max] 内；Max 是最大值，必须大于 Min。原始支持集为 [Min, Max]。truncate / truncatep / truncate2 / truncatep2。都必须统一走 Pert 自己的 PPF 截断口径，不能掉回默认分布。
+    """定义一个Pert分布（也是Beta分布的一种特殊形式）"""
     return _generic_distribution_function_with_simulation("DriskPert", min_val, m_likely, max_val, *args)
-@xl_func("var B, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
+@xl_func("var b, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
 def DriskRayleigh(b, *args):
-    """Rayleigh\u5206\u5e03\uff0c\u53c2\u6570\u56fa\u5b9a\u4e3a b\uff0cb \u662f\u5206\u5e03\u7684\u4f17\u6570\uff0c\u5fc5\u987b\u5927\u4e8e0\uff0c\u7528\u4e8e\u5efa\u6a21\u5de6\u7aef\u6709\u754c\u3001\u53f3\u504f\u7684\u8fde\u7eed\u53d8\u91cf\u3002"""
-    # Rayleigh 分布。参数顺序必须固定为 b。b 是分布的众数，同时也是该分布在 SciPy 口径下的 scale，必须大于 0。原始支持集为 [0, +∞)。truncate / truncatep / truncate2 / truncatep2都必须统一走 Rayleigh 自己的 PPF 截断口径，不能掉回默认分布。
+    """定义一个Rayleigh分布"""
     return _generic_distribution_function_with_simulation("DriskRayleigh", b, *args)
-@xl_func("var Minimum, var Maximum, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
+@xl_func("var min_val, var max_val, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
 def DriskReciprocal(min_val, max_val, *args):
-    """Reciprocal\u5206\u5e03\uff0c\u53c2\u6570\u987a\u5e8f\u56fa\u5b9a\u4e3a Min\u3001Max\uff0c\u5176\u4e2d Min \u5fc5\u987b\u5927\u4e8e0\uff0c\u4e14 Max \u5fc5\u987b\u5927\u4e8e Min\uff0c\u7528\u4e8e\u5efa\u6a21\u53cc\u4fa7\u6709\u754c\u3001\u53f3\u504f\u7684\u8fde\u7eed\u53d8\u91cf\u3002"""
-    # Reciprocal 分布。参数顺序必须固定为 Min, Max：Min 是分布的最小值，必须大于 0，且必须小于 Max；Max 是分布的最大值，必须大于 Min。原始支持集为 [Min, Max]。truncate / truncatep / truncate2 / truncatep2； 都必须统一走 Reciprocal 自己的 PPF 截断口径，不能掉回默认分布。
+    """定义一个Reciprocal分布"""
     return _generic_distribution_function_with_simulation("DriskReciprocal", min_val, max_val, *args)
-@xl_func("var Alpha, var Beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
+@xl_func("var alpha, var beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
 def DriskWeibull(alpha, beta, *args):
-    """Weibull\u5206\u5e03\uff0c\u53c2\u6570\u987a\u5e8f\u4e3a alpha\u3001beta\uff0c\u5176\u4e2d alpha \u548c beta \u90fd\u5fc5\u987b\u5927\u4e8e 0\u3002"""
-    # Weibull 分布，参数顺序为 alpha、beta，且都必须大于 0。
+    """定义Weibull分布，这是一种连续型概率分布，其形状与尺度特性会随参数取值发生显著变化"""
     return _generic_distribution_function_with_simulation("DriskWeibull", alpha, beta, *args)
+@xl_func("var left_dist, var right_dist, var splice_point, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+def DriskSplice(left_dist, right_dist, splice_point, *args):
+    """在 x 等于Splice点处将分布 #1 和分布 #2 拼接在一起"""
+    return _splice_distribution_function_with_simulation(left_dist, right_dist, splice_point, *args)
 
-@xl_func("var Gamma, var Beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var gamma, var beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskCauchy(gamma, beta, *args):
-    """\u67ef\u897f\u5206\u5e03\uff0c\u7528\u4e8e\u6a21\u62df\u91cd\u5c3e\u8fde\u7eed\u968f\u673a\u53d8\u91cf\u53ca\u6781\u7aef\u4e8b\u4ef6\u573a\u666f\ u3002"""
+    """定义一个Cauchy分布"""
     return _generic_distribution_function_with_simulation("DriskCauchy", gamma, beta, *args)
-@xl_func("var Gamma, var Beta, var Alpha_1, var Alpha_2, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var gamma, var beta, var alpha1, var alpha2, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskDagum(gamma, beta, alpha1, alpha2, *args):
-    """\u8fbe\u683c\u59c6\u5206\u5e03\uff0c\u7528\u4e8e\u6a21\u62df\u5de6\u7aef\u6709\u754c\u3001\u53f3\u504f\u91cd\u5c3e\u7684\u8fde\u7eed\u578b\u968f\u673a\u53d8\u91cf\u3002"""
+    """定义一个Dagum分布"""
     return _generic_distribution_function_with_simulation("DriskDagum", gamma, beta, alpha1, alpha2, *args)
-@xl_func("var Minimum, var Most_likely, var Maximum, var Lower_Prob, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属于9, var 属于10, var 属于11, var 属于12, var 属于13, var 属于14, var 属于15, var 属于16, var 属于17,	var 属于18,	var 属于19,	var 属于20,	var*:	var", volatile=True)
+@xl_func("var min_val, var m_likely, var max_val, var lower_p, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属于9, var 属于10, var 属于11, var 属于12, var 属于13, var 属于14, var 属于15, var 属于16, var 属于17,	var 属于18,	var 属于19,	var 属于20,	var*:	var", volatile=True)
 def DriskDoubleTriang(min_val, m_likely, max_val, lower_p, *args):
-    """\u53cc\u4e09\u89d2\u5206\u5e03\uff0c\u7531\u4e0b\u4fa7\u4e0e\u4e0a\u4fa7\u4e24\u6bb5\u4e09\u89d2\u5f62\u6309\u6982\u7387\u6743\u91cd\u7ec4\u6210\u3002"""
+    """定义一个由三个点及下三角分布概率权重构成的Double Triangular分布，其中最小值与最大值出现的概率为零"""
     return _generic_distribution_function_with_simulation("DriskDoubleTriang", min_val, m_likely, max_val, lower_p, *args)
-@xl_func("var Alpha, var Beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var shape, var scale, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskGamma(shape, scale, *args):
     """定义一个Gamma分布。Gamma分布是一个连续分布。"""
     return _generic_distribution_function_with_simulation("DriskGamma", shape, scale, *args)
-@xl_func("var M, var Beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var m, var beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskErlang(m, beta, *args):
-    """Erlang分布，Gamma分布的整数形状参数特例。"""
+    """定义一个具有指定m和beta参数的m-erlang分布。"""
     return _generic_distribution_function_with_simulation("DriskErlang", m, beta, *args)
 @xl_func("var lam, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskPoisson(lam, *args):
+    """定义一个泊松分布，该离散型分布仅返回大于或等于零的整数值"""
     return _generic_distribution_function_with_simulation("DriskPoisson", lam, *args)
-@xl_func("var Alpha_1, var Alpha_2, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var a, var b, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskBeta(a, b, *args):
-    """使用形状参数 alpha1和 alpha2 来定义一个Beta分布。"""
+    """使用形状参数 alpha1 和 alpha2 来定义一个Beta分布"""
     return _generic_distribution_function_with_simulation("DriskBeta", a, b, *args)
-@xl_func("var Alpha_1, var Alpha_2, var Minimum, var Maximum, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
+@xl_func("var alpha1, var alpha2, var min_val, var max_val, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
 def DriskBetaGeneral(alpha1, alpha2, min_val, max_val, *args):
-    """定义一个具有自定义最小值和最大值的Beta分布。"""
-    
+    """\u5b9a\u4e49\u4e00\u4e2a\u5177\u6709\u81ea\u5b9a\u4e49\u6700\u5c0f\u503c\u548c\u6700\u5927\u503c\u7684Beta\u5206\u5e03"""
     return _generic_distribution_function_with_simulation("DriskBetaGeneral", alpha1, alpha2, min_val, max_val, *args)
-@xl_func("var Minimum, var Most_likely, var Mean, var Maximum, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
+@xl_func("var min_val, var m_likely, var mean_val, var max_val, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var",volatile=True)
 def DriskBetaSubj(min_val, m_likely, mean_val, max_val, *args):
-    """BetaSubj\u5206\u5e03\uff0c\u53c2\u6570\u987a\u5e8f\u4e3a Min\u3001M.likely\u3001Mean\u3001Max\uff0c\u7528\u4e8e\u5efa\u6a21\u4e24\u7aef\u6709\u754c\u7684\u53d8\u91cf\uff0c\u5e38\u7528\u4e8e\u9879\u76ee\u7ba1\u7406\u548c\u6210\u672c\u5206\u6790\u9886\u57df\u3002"""
-    # BetaSubj分布，用于建模两端有界的变量，常用于项目管理和成本分析领域。
+    """定义一个具有明确最小值和最大值的Beta分布，其形状参数通过设定的最可能值和均值计算得出"""
     return _generic_distribution_function_with_simulation("DriskBetaSubj", min_val, m_likely, mean_val, max_val, *args)
-@xl_func("var Gamma, var Beta, var Alpha_1, var Alpha_2, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var gamma, var beta, var alpha1, var alpha2, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskBurr12(gamma, beta, alpha1, alpha2, *args):
-    """Burr12\u5206\u5e03\uff0c\u4e00\u79cd\u7075\u6d3b\u7684\u6982\u7387\u5206\u5e03\uff0c\u7528\u4e8e\u5efa\u6a21\u975e\u8d1f\u968f\u673a\u53d8\u91cf\uff0c\u5e38\u7528\u4e8e\u5bb6\u5ead\u6536\u5165\u3001\u4fdd\u9669\u7406\u8d54\u91d1\u989d\u3001\u53ef\u9760\u6027\u6570\u636e\u53ca\u51fa\u884c\u65f6\u95f4\u5206\u6790\u3002"""
-    # Burr12分布，一种灵活的概率分布，用于建模非负随机变量，常用于家庭收入、保险理赔金额、可靠性数据及出行时间分析。
+    """定义一个Burr 12分布"""
     return _generic_distribution_function_with_simulation("DriskBurr12", gamma, beta, alpha1, alpha2, *args)
+@xl_func("var frequency, var severity, var deductible, var limit, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+def DriskCompound(frequency, severity, deductible, limit, *args):
+    """生成基于Severity分布的Frequency样本"""
+    return _compound_distribution_function_with_simulation(frequency, severity, deductible, limit, *args)
 
-@xl_func("var V, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var df, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskChiSq(df, *args):
+    """定义一个自由度为V的卡方分布"""
     return _generic_distribution_function_with_simulation("DriskChiSq", df, *args)
-@xl_func("var V1, var V2, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var df1, var df2, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskF(df1, df2, *args):
+    """定义一个F分布"""
     return _generic_distribution_function_with_simulation("DriskF", df1, df2, *args)
-@xl_func("var V, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var df, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskStudent(df, *args):
+    """定义一个Student分布"""
     return _generic_distribution_function_with_simulation("DriskStudent", df, *args)
-@xl_func("var Beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var lam, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskExpon(lam, *args):
+    """定义一个具有指定beta值的指数分布"""
     return _generic_distribution_function_with_simulation("DriskExpon", lam, *args)
 @xl_func("var p, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskBernoulli(p, *args):
+    """定义一个伯努利分布，其中每次试验的成功概率为p。该离散分布仅返回大于或等于零的整数值"""
     return _generic_distribution_function_with_simulation("DriskBernoulli", p, *args)
 # ==================== 新增分布函数 ====================
-@xl_func("var Minimum, var Most_likely, var Maximum, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var a, var c, var b, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskTriang(a, c, b, *args):
-    """三角分布"""
+    """定义一个Triangular分布，其最小值与最大值处的发生概率为零"""
     return _generic_distribution_function_with_simulation("DriskTriang", a, c, b, *args)
 @xl_func("var n, var p, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskBinomial(n, p, *args):
-    """二项分布"""
+    """定义一个二项分布，其中试验次数为N，每次试验的成功概率为P。该离散分布仅返回大于或等于零的整数值"""
     return _generic_distribution_function_with_simulation("DriskBinomial", n, p, *args)
 @xl_func("var s, var p, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskNegbin(s, p, *args):
-    """负二项分布，用于模拟在达到指定成功次数前所发生的失败次数。"""
+    """定义一个负二项分布，该离散型分布仅返回大于或等于零的整数值"""
     return _generic_distribution_function_with_simulation("DriskNegbin", s, p, *args)
-@xl_func("var Bottom_value, var Most_likely, var Top_value, var Bottom_%, var Top_%, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var L, var M, var U, var alpha, var beta, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskTrigen(L, M, U, alpha, beta, *args):
-    """三参数三角分布"""
+    """定义一个三角分布，该分布具有三个点，其中 一个位于最可能值，另外两个位于指定的底部和顶部百分位数处。"""
     return _generic_distribution_function_with_simulation("DriskTrigen", L, M, U, alpha, beta, *args)
-@xl_func("var Minimum, var Maximum, var X-Table, var P-Table, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var min_val, var max_val, var x_vals, var p_vals, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskCumul(min_val, max_val, x_vals, p_vals, *args):
-    """累积分布，参数：最小值，最大值，X数组（内部点），P数组（内部概率）"""
-    return _generic_distribution_function_with_simulation("DriskCumul",min_val,max_val,x_vals,p_vals,*args)
-@xl_func("var Minimum, var Maximum, var X, var P, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+    """定义一个由最小值和最大值确定范围、包含n个点的Cumul分布"""
+    return _generic_distribution_function_with_simulation("DriskCumul", min_val, max_val, x_vals, p_vals, *args)
+@xl_func("var min_val, var max_val, var x_vals, var p_vals, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskGeneral(min_val, max_val, x_vals, p_vals, *args):
-    """基于指定的 (x, p) 数据对所构建的密度曲线，生成一个广义概率分布。""" 
+    """基于指定的 (x, p) 数据对所构建的密度曲线，生成一个广义概率分布"""
+    # 一般分布：由 Min/Max 与 X-Table/P-Table 定义的有界分段线性连续分布。
     return _generic_distribution_function_with_simulation("DriskGeneral", min_val, max_val, x_vals, p_vals, *args)
-@xl_func("var Minimum, var Maximum, var P, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
+@xl_func("var min_val, var max_val, var p_vals, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskHistogrm(min_val, max_val, p_vals, *args):
-    """定义一个用户自定义的直方图分布。该分布在较小值(minimum)和最大值(maximum)之间均匀分布。且每个区间具有相应的概率权重p。"""
+    """定义一个用户自定义的直方图分布，该分布在最小值(minimum)和最大值(maximum)之间包含若干等宽区间，且每个区间具有相应的概率权重p"""
     return _generic_distribution_function_with_simulation("DriskHistogrm", min_val, max_val, p_vals, *args)
 
 @xl_func("var x_vals, var p_vals, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskDiscrete(x_vals, p_vals, *args):
-    """离散分布，参数为逗号分隔的字符串、花括号数组或单元格区域引用"""
+    """定义一个具有指定结果数量的离散分布，可输入任意数量的可能结果"""
     return _generic_distribution_function_with_simulation("DriskDiscrete", x_vals, p_vals, *args)
-@xl_func("var Mu, var Lambda, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属于13, var 属于14, var 属于15, var 属于16, var 属于17, var 属于18, var 属于19, var 属于20,	var*:	var", volatile=True)
+@xl_func("var mu, var lam, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属于13, var 属于14, var 属于15, var 属于16, var 属于17, var 属于18, var 属于19, var 属于20,	var*:	var", volatile=True)
 def DriskInvgauss(mu, lam, *args):
-    """逆高斯分布。"""
+    """\u5b9a\u4e49\u4e00\u4e2aInvgauss\u5206\u5e03"""
     return _generic_distribution_function_with_simulation("DriskInvgauss", mu, lam, *args)
 @xl_func("var p, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskGeomet(p, *args):
-    """几何分布，定义为首次成功前失败次数。"""
+    """定义一个几何分布，其返回值表示在一系列独立试验中首次成功前所经历的失败次数"""
     return _generic_distribution_function_with_simulation("DriskGeomet", p, *args)
 @xl_func("var x_vals, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var 属性11, var 属性12, var 属性13, var 属性14, var 属性15, var 属性16, var 属性17, var 属性18, var 属性19, var 属性20, var*: var", volatile=True)
 def DriskDUniform(x_vals, *args):
-    """离散均匀分布，取值由 X-Table 指定。"""
+    """定义一个离散均匀分布，该分布具有任意数量的可能结果，且每个结果发生的概率相等"""
     return _generic_distribution_function_with_simulation("DriskDUniform", x_vals, *args)
 # ==================== 模拟状态管理函数（供模拟引擎调用） ====================
 def initialize_simulation_state(total_iterations: int):
@@ -3456,11 +3752,11 @@ def log_debug(message: str):
 
 @xl_func("var n, var D, var M, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var*: var", volatile=True)
 def DriskHypergeo(n, D, M, *args):
-    """超几何分布，用于模拟不放回抽样过程中抽到目标类型物品的数量。"""
+    """定义一个超几何分布，该离散型分布仅返回非负整数值"""
     return _generic_distribution_function_with_simulation("DriskHypergeo", n, D, M, *args)
 
 @xl_func("var min_val, var max_val, var 属性1, var 属性2, var 属性3, var 属性4, var 属性5, var 属性6, var 属性7, var 属性8, var 属性9, var 属性10, var*: var", volatile=True)
 def DriskIntuniform(min_val, max_val, *args):
-    """整数均匀分布，用于模拟给定整数区间内等概率取值的离散过程。"""
+    """定义一个返回最小值和最大值范围内整数的等概率分布"""
     return _generic_distribution_function_with_simulation("DriskIntuniform", min_val, max_val, *args)
  
