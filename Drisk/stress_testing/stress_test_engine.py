@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from simulation_manager import get_simulation, get_current_sim_id
 import numpy as np
 
-
+#单元格辅助函数
 def _resolve_range(sheet, addr: str):
     """将 'SheetName!A1' 或 'A1' 解析为 COM Range 对象。"""
     if "!" in addr:
@@ -32,17 +32,6 @@ def _read_cell(sheet, addr: str) -> float:
     val = _resolve_range(sheet, addr).Value
     return float(val) if val is not None else 0.0
 
-
-def _write_cell(sheet, addr: str, value):
-    """写入单元格数值。"""
-    _resolve_range(sheet, addr).Value = value
-
-
-def _read_formula(sheet, addr: str) -> str:
-    """读取单元格原始公式（无公式则返回空字符串）。"""
-    return str(_resolve_range(sheet, addr).Formula or "")
-
-
 def _restore_cell(sheet, addr: str, formula: str, value: float):
     """恢复单元格：若原来有公式则写回公式，否则写回数值。"""
     rng = _resolve_range(sheet, addr)
@@ -52,11 +41,26 @@ def _restore_cell(sheet, addr: str, formula: str, value: float):
         rng.Value = value
 
 
-def _calc_stressed_value(base: float, lo: float, hi: float, stress_type: str, use_hi: bool) -> float:
-    """根据类型和方向计算压力值。"""
+def _calc_stressed_value(base: float, lo: float, hi: float, stress_type: str, use_hi: bool, x_data_range: float = None) -> float:
+    """
+    根据类型和方向计算压力值。
+
+    参数：
+        base: 基准值
+        lo: 下限
+        hi: 上限
+        stress_type: "百分比 (%)" 或 "数值"
+        use_hi: True 使用上限，False 使用下限
+        x_data_range: X 数据的极差（max - min），用于百分比计算
+    """
     delta = hi if use_hi else lo
     if stress_type == "百分比 (%)":
-        return base * (1.0 + delta / 100.0)
+        if x_data_range is not None and x_data_range > 0:
+            # 统一使用相对数据极差的计算方式
+            return base + delta / 100.0 * x_data_range
+        else:
+            # 降级为相对基准值（兼容无缓存数据的情况）
+            return base * (1.0 + delta / 100.0)
     else:
         return base + delta
 
@@ -178,13 +182,29 @@ def run_stress_test(cfg: dict) -> list[dict]:
 
     results = []
 
+    # 预先获取所有 X 的数据极差（用于百分比计算）
+    x_data_ranges = {}
+    for xc in x_configs:
+        addr = xc["addr"]
+        full_addr = f"{sheet_name}!{addr}" if "!" not in addr else addr
+        x_cache = get_cell_cache_info(full_addr)
+        if x_cache['found']:
+            x_data = np.asarray(x_cache['data'])
+            x_data_ranges[addr] = float(np.max(x_data)) - float(np.min(x_data))
+        else:
+            x_data_ranges[addr] = None
+
     for xc in x_configs:
         addr = xc["addr"]
         stress_type = xc["type"]
         lo = xc["lo"]
         hi = xc["hi"]
         x_base = x_bases[addr]
-        x_formula = _read_formula(active_sheet, addr)  # 保存原始公式
+        # 读取单元格原始公式（无公式则返回空字符串）。
+        x_formula = str(_resolve_range(active_sheet, addr).Formula or "")
+    
+
+        x_data_range = x_data_ranges.get(addr)
 
         # 构建完整的带工作表名的地址
         if "!" not in addr:
@@ -193,26 +213,26 @@ def run_stress_test(cfg: dict) -> list[dict]:
             full_addr = addr
 
         for direction, use_hi in [("下限", False), ("上限", True)]:
-            x_stressed = _calc_stressed_value(x_base, lo, hi, stress_type, use_hi)
+            x_stressed = _calc_stressed_value(x_base, lo, hi, stress_type, use_hi, x_data_range)
             try:
-                _write_cell(active_sheet, addr, x_stressed)
+                """写入单元格数值。"""
+                _resolve_range(active_sheet, addr).Value = x_stressed
                 app.Calculate()
                 y_stressed = _read_cell(active_sheet, y_addr)
             except Exception:
                 y_stressed = float("nan")
             finally:
-                _restore_cell(active_sheet, addr, x_formula, x_base)  # 恢复公式或数值
+                _restore_cell(active_sheet, addr, x_formula, x_base)
 
             delta_y = y_stressed - y_base
             delta_y_pct = (delta_y / y_base * 100.0) if y_base != 0 else float("nan")
 
-            # 计算X的变化比例
             delta_x = x_stressed - x_base
             delta_x_pct = (delta_x / x_base * 100.0) if x_base != 0 else float("nan")
 
             results.append({
                 "label": f"{addr} {direction}",
-                "x_addr": full_addr,  # 使用完整地址
+                "x_addr": full_addr,
                 "direction": direction,
                 "x_base": x_base,
                 "x_stressed": x_stressed,
@@ -224,20 +244,62 @@ def run_stress_test(cfg: dict) -> list[dict]:
                 "delta_y_pct": delta_y_pct,
             })
 
-    # 执行条件筛选统计分析（传递工作表名）
-    _perform_conditional_analysis(cfg, y_cache, sheet_name)
+    # 执行多场景条件筛选统计分析
+    _perform_multi_scenario_analysis(cfg, y_cache, sheet_name)
 
     return results
 
-
-def _perform_conditional_analysis(cfg: dict, y_cache: dict, sheet_name: str):
+def _perform_multi_scenario_analysis(cfg: dict, y_cache: dict, sheet_name: str):
     """
-    执行条件筛选统计分析并弹窗显示结果。
+    执行多场景条件筛选统计分析：
+    1. 为每个 X 单独创建筛选场景
+    2. 创建全部 X 联合筛选场景
 
+    每个场景写入独立的模拟缓存，名称标识不同。
+    """
+    y_addr = cfg["y_cell"]
+    x_configs = cfg["x_configs"]
+
+    if not x_configs:
+        return
+
+    analyze_single = cfg.get("analyze_single", True)
+    count = 0
+
+    if analyze_single:
+        # 场景1：每个 X 单独筛选
+        for xc in x_configs:
+            single_cfg = {"y_cell": y_addr, "x_configs": [xc]}
+            addr = xc["addr"]
+            if "!" in addr:
+                sheet_part, cell_part = addr.split("!", 1)
+                x_label = f"{sheet_part}!{cell_part}"
+            else:
+                x_label = addr
+            _perform_conditional_analysis(single_cfg, y_cache, sheet_name, scenario_name=f"单变量_{x_label}")
+            count += 1
+    else:
+        # 场景2：全部 X 联合筛选
+        _perform_conditional_analysis(cfg, y_cache, sheet_name, scenario_name="全部变量联合")
+        count += 1
+    y_data = np.asarray(y_cache['data'])
+    total_samples = len(y_data)
+
+    title= ["目前的压力测试设置：",
+	   f"模拟测试：{count}次",
+	   f"每次模拟迭代次数：{total_samples}次",
+	   f"全部迭代次数：{count * total_samples}次"]
+    xlcAlert("\n\n".join(title))
+
+def _perform_conditional_analysis(cfg: dict, y_cache: dict, sheet_name: str, scenario_name: str = "压力筛选") -> str:
+    """
+    执行条件筛选统计分析，返回结果消息字符串（由调用方统一弹窗）。
     参数：
         cfg: 压力测试配置
         y_cache: Y单元格的缓存信息
         sheet_name: 工作表名称
+        scenario_name: 场景名称，用于缓存命名
+    返回：结果消息字符串，失败时返回空字符串
     """
     print("Performing conditional analysis...")
     try:
@@ -304,28 +366,32 @@ def _perform_conditional_analysis(cfg: dict, y_cache: dict, sheet_name: str):
         filtered_samples = len(filtered_y_data)
 
         if filtered_samples == 0:
-            xlcAlert("可能条件有误，无法生成符合条件的样本。")
-            return
+            return f"【{scenario_name}】可能条件有误，无法生成符合条件的样本。"
 
-        # 计算筛选后Y的平均值
-        y_mean = float(np.mean(filtered_y_data))
+        # 有放回重采样：将筛选后数据扩充回原始规模，保持分布形态不变
+        rng_gen = np.random.default_rng()
+        resample_idx = rng_gen.integers(0, filtered_samples, size=total_samples)
+        resampled_y_data = filtered_y_data[resample_idx]
+
+        # 计算筛选后Y的平均值（基于重采样后数据）
+        y_mean = float(np.mean(resampled_y_data))
 
         # ---- 将筛选结果写入新的模拟缓存 ----
         from simulation_manager import create_simulation, _SIMULATION_CACHE
-        filtered_sim_id = create_simulation(n_iterations=filtered_samples, sampling_method="stress_filter")
+        filtered_sim_id = create_simulation(n_iterations=total_samples, sampling_method="stress_filter")
         filtered_sim = _SIMULATION_CACHE[filtered_sim_id]
-        filtered_sim.name = f"压力筛选结果_{filtered_sim_id}"
+        filtered_sim.name = f"sim{filtered_sim_id}({scenario_name})"
 
-        # 写入筛选后的 Y 数据
+        # 写入重采样后的 Y 数据
         y_sheet = y_addr.split("!")[0] if "!" in y_addr else sheet_name
         y_cell = y_addr.split("!")[-1] if "!" in y_addr else y_addr
         y_attrs = dict(y_cache.get("attributes") or {})
         y_attrs["stress_filtered"] = True
         y_attrs["filtered_samples"] = filtered_samples
         y_attrs["total_samples"] = total_samples
-        filtered_sim.add_output_result(y_cell, filtered_y_data.astype(float), y_sheet, y_attrs)
+        filtered_sim.add_output_result(y_cell, resampled_y_data.astype(float), y_sheet, y_attrs)
 
-        # 写入筛选后的各 X 数据
+        # 写入重采样后的各 X 数据（与 Y 使用同一组 resample_idx 保持行对齐）
         for xc in x_configs:
             x_addr = xc["addr"]
             full_x_addr = f"{sheet_name}!{x_addr}" if "!" not in x_addr else x_addr
@@ -335,26 +401,15 @@ def _perform_conditional_analysis(cfg: dict, y_cache: dict, sheet_name: str):
             x_data_full = np.asarray(x_cache["data"])
             if len(x_data_full) != total_samples:
                 continue
-            filtered_x_data = x_data_full[combined_mask]
+            filtered_x_data = x_data_full[combined_mask][resample_idx]
             x_sheet = full_x_addr.split("!")[0]
             x_cell = full_x_addr.split("!")[-1]
             x_attrs = dict(x_cache.get("attributes") or {})
             x_attrs["stress_filtered"] = True
             filtered_sim.add_input_result(f"{x_cell}_1", filtered_x_data.astype(float), x_sheet, x_attrs)
 
-        print(f"[压力测试] 筛选结果已写入缓存 sim_id={filtered_sim_id}，样本数={filtered_samples}")
-        # ----------------------------------------
+        print(f"[压力测试] {scenario_name} 筛选结果已写入缓存 sim_id={filtered_sim_id}，原始筛选样本数={filtered_samples}，重采样至={total_samples}")
 
-        # 弹窗显示结果
-        msg = f"条件筛选统计分析结果\n\n"
-        msg += f"因变量: {y_addr}\n"
-        msg += f"总样本数: {total_samples}\n"
-        msg += f"筛选后样本数: {filtered_samples}\n"
-        msg += f"筛选比例: {filtered_samples/total_samples*100:.2f}%\n\n"
-        msg += f"筛选后因变量平均值: {y_mean:.4f}\n"
-        msg += f"筛选结果已存入缓存（ID={filtered_sim_id}）\n"
-
-        xlcAlert(msg)
 
     except Exception as e:
         print(f"[_perform_conditional_analysis] 错误: {e}\n{traceback.format_exc()}")

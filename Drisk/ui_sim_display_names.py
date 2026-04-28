@@ -89,19 +89,15 @@ def get_sim_display_name(sim_id: object) -> str:
 
     回退逻辑：
     1. 若 sim_id 可被标准化：
-       - 先查 custom display name；
+       - 先查 custom display name（用户手动重命名）；
        - 若存在则返回自定义名称；
-       - 若不存在则回退为 "simN"。
+       - 再查 SimulationResult.name（由引擎/压力测试等写入）；
+       - 若为非默认格式则返回；
+       - 否则回退为 "simN"。
     2. 若 sim_id 无法标准化：
        - 先尝试把原值转成字符串；
        - 有文本则直接返回该文本；
        - 否则回退为 "sim"。
-
-    举例：
-    - sim_id = 2，且已设置为“基准方案” -> 返回“基准方案”
-    - sim_id = 2，未设置自定义名 -> 返回 "sim2"
-    - sim_id = "abc" -> 返回 "abc"
-    - sim_id = None -> 返回 "sim"
     """
     sid = normalize_sim_id(sim_id)
     if sid is None:
@@ -112,8 +108,19 @@ def get_sim_display_name(sim_id: object) -> str:
     if custom:
         return custom
 
-    return f"sim{sid}"
+    # 从 SimulationResult.name 读取引擎设置的名称
+    try:
+        from simulation_manager import get_simulation
+        sim = get_simulation(sid)
+        if sim is not None:
+            sim_name = str(getattr(sim, "name", "") or "").strip()
+            default_prefix = f"Sim_{sid}_"
+            if sim_name and not sim_name.startswith(default_prefix):
+                return sim_name
+    except Exception:
+        pass
 
+    return f"sim{sid}"
 
 def set_sim_display_name(sim_id: object, display_name: object) -> str:
     """

@@ -538,6 +538,7 @@ class LabelSettingsDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Drisk - 文本设置")
         self.resize(300, 200)
+        self.setFixedSize(300, 400)
         self._include_chart_title = bool(include_chart_title)
 
         # 归一化外部输入，确保后续逻辑面对的是标准数据结构。
