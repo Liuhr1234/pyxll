@@ -2,7 +2,7 @@
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
+import sim_engine
 from pyxll import xl_app
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
@@ -21,7 +21,6 @@ def _get_output_candidates() -> list[tuple[str, str]]:
     try:
         from simulation_manager import _SIMULATION_CACHE
         from sim_engine import drisk_run_selected
-        
         seen = set()
         candidates = []
         for sim in _SIMULATION_CACHE.values():
@@ -34,9 +33,17 @@ def _get_output_candidates() -> list[tuple[str, str]]:
                 label = f"{name} ({ck})" if name else ck
                 candidates.append((label, ck))
         #若没有候选值，则运行一次模拟
-        if not candidates:
+        if candidates == []:
             drisk_run_selected()
-            return _get_output_candidates()
+            for sim in _SIMULATION_CACHE.values():
+                for ck in (sim.output_cache or {}):
+                    if ck in seen:
+                        continue
+                    seen.add(ck)
+                    attrs = (sim.output_attributes or {}).get(ck, {}) or {}
+                    name = attrs.get("name") or attrs.get("DriskName") or ""
+                    label = f"{name} ({ck})" if name else ck
+                    candidates.append((label, ck))
         return candidates
     except Exception:
         return []
@@ -46,10 +53,28 @@ def _get_input_candidates_for_y(y_addr: str) -> list[tuple[str, str]]:
     """
     返回与 Y 地址相关的输入变量候选项（每项为 (display_label, full_addr)）：
     1. Y 单元格的 Excel 公式直接前驱；
-    2. 最新模拟缓存中的所有 input 变量。
     """
+    from ui_shared import resolve_visible_variable_name
     candidates = []
     seen = set()
+
+    # 预先从最新模拟缓存中构建 addr -> attrs 映射
+    attrs_map: dict[str, dict] = {}
+    try:
+        from simulation_manager import _SIMULATION_CACHE
+        if _SIMULATION_CACHE:
+            sim = _SIMULATION_CACHE[max(_SIMULATION_CACHE.keys())]
+            for ck in (sim.input_cache or {}):
+                attrs = sim.get_input_attributes(ck)
+                if attrs:
+                    # 标准化：去 $ 、去数字后缀（如 _1、_MAKEINPUT）
+                    base = ck.replace("$", "").upper()
+                    cell_part = base.split("!")[-1]
+                    if "_" in cell_part:
+                        base = base.rsplit("_", 1)[0]
+                    attrs_map[base] = attrs
+    except Exception:
+        pass
 
     # Excel 公式前驱
     try:
@@ -69,26 +94,14 @@ def _get_input_candidates_for_y(y_addr: str) -> list[tuple[str, str]]:
                     full = f"{cell_sheet}!{cell_addr}"
                     if full not in seen:
                         seen.add(full)
-                        candidates.append((f"[引用] {full}", full))
+                        attrs = attrs_map.get(full.upper(), {})
+                        name = resolve_visible_variable_name(
+                            full, attrs, excel_app=app, fallback_label=full
+                        )
+                        label = f"{name} ({full})" if name != full else full
+                        candidates.append((label, full))
         except Exception:
             pass
-    except Exception:
-        pass
-
-    # 模拟缓存中的 input 变量
-    try:
-        from simulation_manager import _SIMULATION_CACHE
-        if _SIMULATION_CACHE:
-            sim = _SIMULATION_CACHE[max(_SIMULATION_CACHE.keys())]
-            for ck in (sim.input_cache or {}):
-                base = ck.rsplit("_", 1)[0] if "_" in ck.split("!")[-1] else ck
-                if base in seen:
-                    continue
-                seen.add(base)
-                attrs = (sim.input_attributes or {}).get(ck, {}) or {}
-                name = attrs.get("name") or attrs.get("DriskName") or ""
-                label = f"{name} ({base})" if name else base
-                candidates.append((label, base))
     except Exception:
         pass
 
@@ -145,6 +158,8 @@ class StressTestInputDialog(QDialog):
         self.resize(600, 660)
         self.x_cells: list[str] = []
         self.y_cell: str = ""
+        # 地址 -> 显示名称映射
+        self._addr_to_name: dict[str, str] = {}
         set_drisk_icon(self)
         self._build_ui()
         self.setStyleSheet(_build_dialog_stylesheet())
@@ -189,7 +204,7 @@ class StressTestInputDialog(QDialog):
         y_row.addWidget(btn_y)
         left_layout.addLayout(y_row)
 
-        lbl_cache = QLabel("内存中的输出变量（双击选择）：")
+        lbl_cache = QLabel("输出变量列表（双击选择）：")
         lbl_cache.setStyleSheet("color: #666; font-size: 11px; font-weight: normal;")
         left_layout.addWidget(lbl_cache)
 
@@ -229,7 +244,7 @@ class StressTestInputDialog(QDialog):
         x_row.addWidget(btn_x)
         right_layout.addLayout(x_row)
 
-        lbl_x_cand = QLabel("候选输入变量——选中输出变量后自动填充：")
+        lbl_x_cand = QLabel("候选输入变量列表（双击选择或勾选添加）：")
         lbl_x_cand.setStyleSheet("color: #666; font-size: 11px; font-weight: normal;")
         right_layout.addWidget(lbl_x_cand)
 
@@ -247,14 +262,15 @@ class StressTestInputDialog(QDialog):
         root.addWidget(btn_add_checked)
         # ---- 压力范围表格标题行（含"移除所有项"按钮）----
         table_hdr = QHBoxLayout()
-        lbl_table = QLabel("各输入变量压力测试范围：")
+        lbl_table = QLabel("3.输入变量压力测试范围：")
+        lbl_table.setStyleSheet("font-weight: bold; font-size: 12px; color: #444;")
         table_hdr.addWidget(lbl_table)
         table_hdr.addStretch()
         
         root.addLayout(table_hdr)
 
         self._table = QTableWidget(0, 5)
-        self._table.setHorizontalHeaderLabels(["单元格", "类型", "下限", "上限", ""])
+        self._table.setHorizontalHeaderLabels(["输入变量", "类型", "下限", "上限", ""])
         header = self._table.horizontalHeader()
         for col in range(4):
             header.setSectionResizeMode(col, QHeaderView.Stretch)
@@ -308,6 +324,12 @@ class StressTestInputDialog(QDialog):
     def _refresh_y_candidates(self):
         self._list_y_candidates.clear()
         for label, addr in _get_output_candidates():
+            # 提取纯名称（去掉括号中的地址）
+            if " (" in label and label.endswith(")"):
+                name = label.rsplit(" (", 1)[0]
+            else:
+                name = label
+            self._addr_to_name[addr] = name
             item = QListWidgetItem(label)
             item.setData(Qt.UserRole, addr)
             self._list_y_candidates.addItem(item)
@@ -315,7 +337,8 @@ class StressTestInputDialog(QDialog):
     def _on_y_candidate_double_clicked(self, item: QListWidgetItem):
         addr = item.data(Qt.UserRole)
         self.y_cell = addr
-        self._y_edit.setText(addr)
+        name = self._addr_to_name.get(addr, addr)
+        self._y_edit.setText(name)
         self._refresh_x_candidates()
 
     # ------------------------------------------------------------------
@@ -328,6 +351,12 @@ class StressTestInputDialog(QDialog):
         selected_set = set(self.x_cells)
         self._list_x_candidates.blockSignals(True)
         for label, addr in _get_input_candidates_for_y(self.y_cell):
+            # 提取纯名称（去掉括号中的地址）
+            if " (" in label and label.endswith(")"):
+                name = label.rsplit(" (", 1)[0]
+            else:
+                name = label
+            self._addr_to_name[addr] = name
             item = QListWidgetItem(label)
             item.setData(Qt.UserRole, addr)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
@@ -385,13 +414,32 @@ class StressTestInputDialog(QDialog):
     def _pick_y(self):
         cells = self._pick_range(single=True)
         if cells:
-            self.y_cell = cells[0]
-            self._y_edit.setText(self.y_cell)
+            addr = cells[0]
+            self.y_cell = addr
+            # 解析名称并存储
+            from ui_shared import resolve_visible_variable_name
+            try:
+                app = xl_app()
+                name = resolve_visible_variable_name(addr, excel_app=app, fallback_label=addr)
+                self._addr_to_name[addr] = name
+                self._y_edit.setText(name)
+            except Exception:
+                self._y_edit.setText(addr)
             self._refresh_x_candidates()
 
     def _pick_x(self):
         cells = self._pick_range(single=False)
         if cells:
+            # 解析名称并存储
+            from ui_shared import resolve_visible_variable_name
+            try:
+                app = xl_app()
+                for addr in cells:
+                    if addr not in self._addr_to_name:
+                        name = resolve_visible_variable_name(addr, excel_app=app, fallback_label=addr)
+                        self._addr_to_name[addr] = name
+            except Exception:
+                pass
             self._add_x_cells(cells)
 
     def _add_x_cells(self, cells: list[str]):
@@ -410,16 +458,20 @@ class StressTestInputDialog(QDialog):
     def _rebuild_table(self):
         old = {}
         for r in range(self._table.rowCount()):
-            addr = self._table.item(r, 0).text()
+            item = self._table.item(r, 0)
+            addr = item.data(Qt.UserRole) if item else None
             combo = self._table.cellWidget(r, 1)
             lo = self._table.cellWidget(r, 2)
             hi = self._table.cellWidget(r, 3)
-            if combo and lo and hi:
+            if addr and combo and lo and hi:
                 old[addr] = (combo.currentText(), lo.value(), hi.value())
 
         self._table.setRowCount(len(self.x_cells))
         for r, addr in enumerate(self.x_cells):
-            self._table.setItem(r, 0, QTableWidgetItem(addr))
+            name = self._addr_to_name.get(addr, addr)+f"({addr})"
+            item = QTableWidgetItem(name)
+            item.setData(Qt.UserRole, addr)
+            self._table.setItem(r, 0, item)
 
             combo = QComboBox()
             combo.addItems(["百分比 (%)", "数值"])
@@ -476,16 +528,18 @@ class StressTestInputDialog(QDialog):
     def get_config(self) -> dict:
         x_configs = []
         for r in range(self._table.rowCount()):
-            addr = self._table.item(r, 0).text()
+            item = self._table.item(r, 0)
+            addr = item.data(Qt.UserRole) if item else None
             combo = self._table.cellWidget(r, 1)
             lo = self._table.cellWidget(r, 2)
             hi = self._table.cellWidget(r, 3)
-            x_configs.append({
-                "addr": addr,
-                "type": combo.currentText(),
-                "lo": lo.value(),
-                "hi": hi.value(),
-            })
+            if addr and combo and lo and hi:
+                x_configs.append({
+                    "addr": addr,
+                    "type": combo.currentText(),
+                    "lo": lo.value(),
+                    "hi": hi.value(),
+                })
         analyze_single = self._radio_group.checkedId() == 0
         return {"y_cell": self.y_cell, "x_configs": x_configs, "analyze_single": analyze_single}
 
@@ -496,4 +550,45 @@ class StressTestInputDialog(QDialog):
         if not self.x_cells:
             QMessageBox.warning(self, "提示", "请至少选择一个输入变量（X）单元格。")
             return
-        self.accept()
+        y_name = self._addr_to_name.get(self.y_cell, self.y_cell)
+        x_names = [self._addr_to_name.get(c, c)+f"({c})" for c in self.x_cells]
+        x_list = ", ".join(f"{n}" for n in x_names)
+        selected_id = self._radio_group.checkedId()
+        time = len(self.x_cells) + 1 if selected_id == 0 else 2
+        msg = (
+            f"输出变量（Y）：{y_name}({self.y_cell})\n\n"
+            f"输入变量（X）：{x_list}\n\n"
+            f"压力测试次数：{time}\n\n"
+            f"总计算次数：{time*int(sim_engine._ribbon_iterations)}\n\n"
+            "确认后将开始压力测试模拟，取消返回压力测试设置。"
+        )
+        msg_box = QDialog(self)
+        msg_box.setWindowTitle("确认分析配置")
+        set_drisk_icon(msg_box)
+        msg_box.setStyleSheet(
+            "QDialog { background-color: #f5f6f8; }"
+            "QLabel { color: #333; font-size: 12px; font-family: 'Microsoft YaHei'; }"
+        )
+        msg_box.setFixedWidth(420)
+        layout = QVBoxLayout(msg_box)
+        layout.setContentsMargins(20, 18, 20, 14)
+        layout.setSpacing(14)
+        lbl = QLabel(msg)
+        lbl.setWordWrap(True)
+        lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        layout.addWidget(lbl)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+        btn_cancel = QPushButton("取消")
+        btn_cancel.setFixedSize(80, 28)
+        btn_cancel.clicked.connect(msg_box.reject)
+        btn_ok = QPushButton("确认")
+        btn_ok.setObjectName("btnOk")
+        btn_ok.setFixedSize(80, 28)
+        btn_ok.setDefault(True)
+        btn_ok.clicked.connect(msg_box.accept)
+        btn_row.addWidget(btn_cancel)
+        btn_row.addWidget(btn_ok)
+        layout.addLayout(btn_row)
+        if msg_box.exec() == QDialog.Accepted:
+            self.accept()

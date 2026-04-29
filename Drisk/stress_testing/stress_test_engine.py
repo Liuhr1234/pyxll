@@ -14,6 +14,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from simulation_manager import get_simulation, get_current_sim_id
 import numpy as np
+from ui_shared import _show_info
 
 #单元格辅助函数
 def _resolve_range(sheet, addr: str):
@@ -264,7 +265,7 @@ def _perform_multi_scenario_analysis(cfg: dict, y_cache: dict, sheet_name: str):
         return
 
     analyze_single = cfg.get("analyze_single", True)
-    count = 0
+    count = 1
 
     if analyze_single:
         # 场景1：每个 X 单独筛选
@@ -285,11 +286,13 @@ def _perform_multi_scenario_analysis(cfg: dict, y_cache: dict, sheet_name: str):
     y_data = np.asarray(y_cache['data'])
     total_samples = len(y_data)
 
-    title= ["目前的压力测试设置：",
-	   f"模拟测试：{count}次",
-	   f"每次模拟迭代次数：{total_samples}次",
-	   f"全部迭代次数：{count * total_samples}次"]
-    xlcAlert("\n\n".join(title))
+    lines = [
+        "目前的压力测试设置：",
+        f"模拟测试：{count} 次",
+        f"每次模拟迭代次数：{total_samples} 次",
+        f"全部迭代次数：{count * total_samples} 次",
+    ]
+    _show_info("\n\n".join(lines))
 
 def _perform_conditional_analysis(cfg: dict, y_cache: dict, sheet_name: str, scenario_name: str = "压力筛选") -> str:
     """

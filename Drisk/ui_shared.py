@@ -17,7 +17,8 @@ import os
 import re
 import tempfile
 import numpy as np
-
+import sys
+from pyxll import xlcAlert
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QPen, QBrush, QPolygonF, QFontMetrics
 from PySide6.QtCore import Qt, QTimer, Signal, QRectF, QPointF, QObject, QEvent, QEventLoop, QUrl, QSize
 from PySide6.QtWidgets import QLineEdit, QWidget, QLabel, QPushButton, QMenu, QComboBox, QHBoxLayout, QVBoxLayout, QSizePolicy
@@ -1972,3 +1973,42 @@ def set_drisk_icon(window_widget, icon_name="simu_icon.svg"):
         window_widget.setWindowIcon(QIcon(square_pixmap))
     except Exception as e:
         print(f"[UI_SHARED] Failed to set icon '{icon_name}': {e}")
+
+def _show_info(message: str) -> None:
+    """Drisk 风格信息弹窗，失败时退回 xlcAlert。"""
+    try:
+        from PySide6.QtWidgets import QApplication, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
+        from PySide6.QtCore import Qt
+        _app = QApplication.instance() or QApplication(sys.argv)
+        dlg = QDialog()
+        dlg.setWindowTitle("Drisk")
+        set_drisk_icon(dlg, "simu_icon.svg")
+        dlg.setModal(True)
+        dlg.setFixedWidth(340)
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(18, 16, 18, 14)
+        layout.setSpacing(12)
+        lbl = QLabel(message)
+        lbl.setWordWrap(True)
+        lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        layout.addWidget(lbl)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+        btn_ok = QPushButton("确定")
+        btn_ok.setDefault(True)
+        btn_ok.clicked.connect(dlg.accept)
+        btn_ok.setStyleSheet(
+            "QPushButton { background-color: #0050b3; color: white; border: none;"
+            " border-radius: 3px; padding: 5px 18px; font-size: 12px;"
+            " font-family: 'Microsoft YaHei'; min-width: 60px; }"
+            "QPushButton:hover { background-color: #1677ff; }"
+        )
+        btn_row.addWidget(btn_ok)
+        layout.addLayout(btn_row)
+        dlg.setStyleSheet(
+            "QDialog { background-color: #f5f6f8; }"
+            "QLabel { color: #333; font-size: 12px; font-family: 'Microsoft YaHei'; }"
+        )
+        dlg.exec()
+    except Exception:
+        xlcAlert(message)

@@ -2068,13 +2068,43 @@ def smart_plot_macro(control=None):
             print(f"[Drisk][结果入口] 找不到键名: {miss_key}")
 
         if not valid_keys:
-            _show_drisk_info_dialog(
-                "未找到所选单元格的模拟数据。\n\n"
-                "1. 确保已选择输出单元格或分布公式。\n"
-                "2. 打开智能图表前请先运行模拟。\n"
-                "3. 调用智能图表前请先选择目标单元格。"
-            )
-            return
+            # 当前选区无缓存数据，自动回退到缓存中第一个可用的数据键
+            sim = get_simulation(sim_id)
+            if sim is not None:
+                output_cache = getattr(sim, "output_cache", {}) or {}
+                input_cache = getattr(sim, "input_cache", {}) or {}
+                output_attrs = getattr(sim, "output_attributes", {}) or {}
+                input_attrs = getattr(sim, "input_attributes", {}) or {}
+
+                if output_cache:
+                    first_key = next(iter(output_cache.keys()))
+                    valid_keys = [first_key]
+                    attrs = output_attrs.get(first_key, {}) or {}
+                    name = attrs.get("name")
+                    display_addr = str(first_key).split("!")[-1] if "!" in str(first_key) else str(first_key)
+                    labels = {first_key: f"{display_addr} ({name})" if name else display_addr}
+                    kind = "output"
+                elif input_cache:
+                    first_key = next(
+                        (k for k in input_cache.keys() if is_input_key_exposed(sim, k)),
+                        next(iter(input_cache.keys()), None),
+                    )
+                    if first_key is not None:
+                        valid_keys = [first_key]
+                        attrs = input_attrs.get(first_key, {}) or {}
+                        name = attrs.get("name")
+                        display_addr = str(first_key).split("!")[-1] if "!" in str(first_key) else str(first_key)
+                        labels = {first_key: f"{display_addr} ({name})" if name else display_addr}
+                        kind = "input"
+
+            if not valid_keys:
+                _show_drisk_info_dialog(
+                    "未找到所选单元格的模拟数据。\n\n"
+                    "1. 确保已选择输出单元格或分布公式。\n"
+                    "2. 打开智能图表前请先运行模拟。\n"
+                    "3. 调用智能图表前请先选择目标单元格。"
+                )
+                return
 
         show_results_dialog(sim_id=sim_id, cell_keys=valid_keys, labels=labels, kind=kind)
         app.StatusBar = "图表已就绪"
@@ -2107,6 +2137,84 @@ def open_stress_test(control=None):
             xlcAlert(f"打开压力测试窗口失败: {e}")
         except Exception:
             pass
+
+#相关性分析入口，对应代码在correlation_analysis目录下
+@xl_macro
+def open_correlation_analysis(control=None):
+    """打开相关性矩阵配置窗口：先选单元格，再编辑矩阵。"""
+    try:
+        from correlation_analysis.ui_corrmat import CellPickerDialog, CorrMatrixDialog
+        from PySide6.QtWidgets import QDialog
+
+        picker = CellPickerDialog()
+        if picker.exec() != QDialog.Accepted:
+            return
+        cells = picker.cells
+
+        editor = CorrMatrixDialog(cells)
+        if editor.exec() != QDialog.Accepted:
+            return
+
+        matrix_name = editor.get_matrix_name()
+        matrix = editor.get_matrix()
+
+        # 写入 Excel 并更新分布公式
+        from corrmat_functions import (
+            _write_lower_tri_matrix, _set_named_range,
+            _ensure_corrmat_in_formula,
+        )
+        app = xl_app()
+        wb = app.ActiveWorkbook
+
+        # 选择矩阵写入位置
+        try:
+            top_left = app.InputBox(
+                Prompt="请选择矩阵表格的左上角单元格（矩阵将向右下扩展）:",
+                Title="矩阵写入位置",
+                Type=8,
+            )
+            if top_left is False:
+                return
+        except Exception:
+            return
+
+        n = len(cells)
+        sheet = top_left.Worksheet
+        sr, sc = top_left.Row, top_left.Column
+        matrix_range = sheet.Range(
+            sheet.Cells(sr, sc), sheet.Cells(sr + n, sc + n)
+        )
+        labels = [c.split("!")[-1] if "!" in c else c for c in cells]
+        _write_lower_tri_matrix(matrix_range, matrix, labels, matrix_name=matrix_name)
+        _set_named_range(app, matrix_name, matrix_range)
+
+        # 为每个分布单元格注入 DriskCorrmat 属性
+        modified = []
+        for pos, full_addr in enumerate(cells, start=1):
+            if "!" in full_addr:
+                sname, addr = full_addr.split("!", 1)
+                cell = wb.Sheets(sname).Range(addr)
+            else:
+                cell = app.ActiveSheet.Range(full_addr)
+            formula = cell.Formula or ""
+            new_formula = _ensure_corrmat_in_formula(formula, matrix_name, pos)
+            if new_formula != formula:
+                cell.Formula = new_formula
+                modified.append(full_addr)
+
+        from pyxll import xlcAlert
+        xlcAlert(f"相关性矩阵 {matrix_name} 已创建。\n"
+            f"已为 {len(modified)} 个单元格添加 DriskCorrmat 属性。"
+        )
+    except Exception as e:
+        import traceback as _tb
+        try:
+            from pyxll import xlcAlert
+            xlcAlert(f"打开相关性矩阵窗口失败：{e}\n\n{_tb.format_exc()}")
+        except Exception:
+            pass
+
+
 
 @xl_macro()
 def open_scatter_viewer(control=None):
